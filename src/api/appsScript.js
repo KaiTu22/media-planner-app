@@ -84,3 +84,16 @@ export function appsScriptPost(baseUrl, params = {}, { settleMs = 1500 } = {}) {
     }, settleMs);
   });
 }
+
+// Confirms a write actually landed by polling a read until a condition is
+// true, rather than trusting a single follow-up read right after
+// appsScriptPost resolves — writes involving extra backend work (e.g. Drive
+// folder creation) can take longer than the fixed settle delay above.
+export async function verifyByPolling(check, { attempts = 8, intervalMs = 800 } = {}) {
+  for (let i = 0; i < attempts; i++) {
+    const result = await check();
+    if (result) return result;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error('Write did not appear after polling — it may have failed or be delayed.');
+}
