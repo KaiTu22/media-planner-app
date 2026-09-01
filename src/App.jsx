@@ -1,6 +1,9 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import Assignment from './pages/Assignment';
 import BackendCheck from './pages/BackendCheck';
+import LogLayout from './pages/log/LogLayout';
+import PlansLog from './pages/log/PlansLog';
+import ProjectsLog from './pages/log/ProjectsLog';
 import SandboxCheck from './pages/SandboxCheck';
 import './App.css';
 
@@ -25,7 +28,11 @@ function App() {
       <main className="shell-main">
         <Routes>
           <Route path="/" element={<Assignment />} />
-          <Route path="/log" element={<Placeholder title="Log" />} />
+          <Route path="/log" element={<LogLayout />}>
+            <Route index element={<Navigate to="projects" replace />} />
+            <Route path="projects" element={<ProjectsLog />} />
+            <Route path="plans" element={<PlansLog />} />
+          </Route>
           <Route path="/reporting" element={<Placeholder title="Reporting" />} />
           <Route path="/planner" element={<Placeholder title="Planner" />} />
           <Route path="/backend-check" element={<BackendCheck />} />

@@ -8,6 +8,7 @@ import { SANDBOX_API_URL } from '../api/config';
 export default function SandboxCheck() {
   const [whoami, setWhoami] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [versions, setVersions] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [form, setForm] = useState({
@@ -18,16 +19,19 @@ export default function SandboxCheck() {
     pitchLeadName: 'Nicole Rosenberg',
   });
   const [creating, setCreating] = useState(false);
+  const [creatingVersion, setCreatingVersion] = useState(false);
 
   const refresh = () => {
     setStatus('loading');
     Promise.all([
       jsonpRequest(SANDBOX_API_URL, { action: 'whoami' }),
       jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' }),
+      jsonpRequest(SANDBOX_API_URL, { action: 'listVersions' }),
     ])
-      .then(([user, projectRows]) => {
+      .then(([user, projectRows, versionRows]) => {
         setWhoami(user);
         setProjects(projectRows);
+        setVersions(versionRows);
         setStatus('done');
       })
       .catch((err) => {
@@ -66,6 +70,37 @@ export default function SandboxCheck() {
     }
   };
 
+  const createTestVersion = async (projectId) => {
+    setCreatingVersion(true);
+    setError(null);
+    const id = `testver-${Date.now()}`;
+    try {
+      await appsScriptPost(SANDBOX_API_URL, {
+        action: 'createVersion',
+        payload: JSON.stringify({
+          id,
+          projectId,
+          name: `Test Version ${new Date().toLocaleTimeString()}`,
+          completedDate: new Date().toISOString(),
+          totalInvestment: Math.round(Math.random() * 500000),
+          versionStatus: 'closed_pending_verification',
+        }),
+      });
+      await verifyByPolling(async () => {
+        const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listVersions' });
+        if (rows.find((r) => r.id === id)) {
+          setVersions(rows);
+          return true;
+        }
+        return false;
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreatingVersion(false);
+    }
+  };
+
   if (status === 'loading') return <p>Loading sandbox data…</p>;
   if (status === 'error') return <p style={{ color: 'crimson' }}>Failed: {error}</p>;
 
@@ -83,6 +118,19 @@ export default function SandboxCheck() {
             Pitch lead: {p.pitchLeadName} → pitchTeam: {p.pitchTeam || '(none)'} | Agency: {p.agency} → holdCo: {p.holdCo || '(none)'}
             <br />
             Folder: {p.driveFolderLink ? <a href={p.driveFolderLink} target="_blank" rel="noreferrer">{p.driveFolderLink}</a> : '(none)'}
+            <br />
+            <button onClick={() => createTestVersion(p.id)} disabled={creatingVersion || whoami.role !== 'write'}>
+              {creatingVersion ? 'Creating version…' : 'Create test completed version'}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <h3>Versions ({versions.length})</h3>
+      <ul>
+        {versions.map((v) => (
+          <li key={v.id}>
+            {v.name} — completed {v.completedDate} — ${v.totalInvestment}
           </li>
         ))}
       </ul>
