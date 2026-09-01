@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
+import Assignment from './pages/Assignment';
 import BackendCheck from './pages/BackendCheck';
 import SandboxCheck from './pages/SandboxCheck';
 import './App.css';
@@ -23,7 +24,7 @@ function App() {
       </nav>
       <main className="shell-main">
         <Routes>
-          <Route path="/" element={<Placeholder title="Assignment" />} />
+          <Route path="/" element={<Assignment />} />
           <Route path="/log" element={<Placeholder title="Log" />} />
           <Route path="/reporting" element={<Placeholder title="Reporting" />} />
           <Route path="/planner" element={<Placeholder title="Planner" />} />
