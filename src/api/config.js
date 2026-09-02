@@ -8,3 +8,8 @@ export const CLOSED_DEALS_API_URL =
 // views are not implemented yet (weeks 3-8).
 export const SANDBOX_API_URL =
   'https://script.google.com/macros/s/AKfycbxSFOffhttkk_81Y-ivuSOcPFWhlTwfNaOzW3Zw5toMnKRreZ4UYVaAkUfiemwltvfx/exec';
+
+// Planner tool (media-planner-tool repo) — still a separate vanilla-JS page,
+// not folded into this app's routing until Phase E (§8). Update this once
+// it has a real hosted URL; local dev server for now.
+export const PLANNER_TOOL_URL = 'http://localhost:8899/index.html';
