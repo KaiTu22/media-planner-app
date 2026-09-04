@@ -70,6 +70,57 @@ export default function SandboxCheck() {
     }
   };
 
+  const [concurrencyResult, setConcurrencyResult] = useState(null);
+  const [runningConcurrency, setRunningConcurrency] = useState(false);
+
+  // Weeks 12-13 hardening check: fires N writes at once from this one
+  // authenticated tab (not N separate browser sessions) to stress the
+  // Apps Script LockService serialization — checks both that every write
+  // lands and that none got corrupted/interleaved with another's fields.
+  const runConcurrencyTest = async (n) => {
+    setRunningConcurrency(true);
+    setConcurrencyResult(null);
+    setError(null);
+    const batchTag = Date.now();
+    const testIds = Array.from({ length: n }, (_, i) => `concurrency-${batchTag}-${i}`);
+    const startedAt = Date.now();
+    try {
+      await Promise.all(testIds.map((id, i) => appsScriptPost(SANDBOX_API_URL, {
+        action: 'createProject',
+        payload: JSON.stringify({
+          id,
+          projectName: `Concurrency Test ${i}`,
+          account: `ConcurrencyAccount${i}`,
+          brand: `ConcurrencyBrand${i}`,
+        }),
+      })));
+      const elapsedMs = Date.now() - startedAt;
+
+      const rows = await verifyByPolling(async () => {
+        const all = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
+        const found = testIds.map((id) => all.find((r) => r.id === id)).filter(Boolean);
+        return found.length === n ? found : false;
+      }, { attempts: 15, intervalMs: 1000 });
+
+      const corrupted = rows.filter((r, i) => {
+        const expectedIndex = testIds.indexOf(r.id);
+        return r.projectName !== `Concurrency Test ${expectedIndex}` || r.account !== `ConcurrencyAccount${expectedIndex}`;
+      });
+
+      setConcurrencyResult({
+        requested: n,
+        landed: rows.length,
+        corrupted: corrupted.length,
+        elapsedMs,
+      });
+      refresh();
+    } catch (err) {
+      setConcurrencyResult({ requested: n, landed: 0, corrupted: 0, error: err.message });
+    } finally {
+      setRunningConcurrency(false);
+    }
+  };
+
   const createTestVersion = async (projectId) => {
     setCreatingVersion(true);
     setError(null);
@@ -154,6 +205,24 @@ export default function SandboxCheck() {
       </div>
       {whoami.role !== 'write' && <p>Read-only user — create is disabled.</p>}
       {error && <p style={{ color: 'crimson' }}>Failed: {error}</p>}
+
+      <h3>Concurrency test (§9, weeks 12-13)</h3>
+      <p>Fires N simultaneous createProject writes from this one tab, then checks every one landed with no field corruption.</p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => runConcurrencyTest(10)} disabled={runningConcurrency || whoami.role !== 'write'}>
+          {runningConcurrency ? 'Running…' : 'Run with 10 concurrent writes'}
+        </button>
+        <button onClick={() => runConcurrencyTest(20)} disabled={runningConcurrency || whoami.role !== 'write'}>
+          {runningConcurrency ? 'Running…' : 'Run with 20 concurrent writes'}
+        </button>
+      </div>
+      {concurrencyResult && (
+        <p style={{ color: concurrencyResult.error || concurrencyResult.corrupted > 0 || concurrencyResult.landed < concurrencyResult.requested ? 'crimson' : 'green' }}>
+          {concurrencyResult.error
+            ? `Failed: ${concurrencyResult.error}`
+            : `${concurrencyResult.landed}/${concurrencyResult.requested} landed, ${concurrencyResult.corrupted} corrupted, in ${concurrencyResult.elapsedMs}ms`}
+        </p>
+      )}
     </div>
   );
 }
