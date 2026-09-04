@@ -95,40 +95,55 @@ export default function Browse() {
     });
   };
 
+  // Optimistic updates throughout: Apps Script writes give no readable
+  // response (X-Frame-Options blocks it), so confirming a write means
+  // polling a follow-up read — a couple of seconds even when everything
+  // works. Updating local state immediately and reconciling with the real
+  // backend state in the background (rolling back only on actual failure)
+  // makes the UI feel instant for the common case instead of visibly
+  // lagging behind every click.
   const createFolder = async (parentId) => {
     const name = window.prompt('Name this folder:');
     if (!name || !name.trim()) return;
     const id = `folder-${Date.now()}`;
-    await appsScriptPost(SANDBOX_API_URL, {
-      action: 'createProjectFolder',
-      payload: JSON.stringify({ id, name: name.trim(), parentId: parentId || null }),
-    });
-    await verifyByPolling(async () => {
-      const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
-      if (rows.find((f) => f.id === id)) {
-        setFolders(rows);
-        return true;
-      }
-      return false;
-    });
+    const optimisticFolder = { id, name: name.trim(), parentId: parentId || null };
+    setFolders((prev) => [...prev, optimisticFolder]);
     if (parentId) setExpanded((prev) => new Set(prev).add(parentId));
+    try {
+      await appsScriptPost(SANDBOX_API_URL, { action: 'createProjectFolder', payload: JSON.stringify(optimisticFolder) });
+      await verifyByPolling(async () => {
+        const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
+        if (rows.find((f) => f.id === id)) {
+          setFolders(rows);
+          return true;
+        }
+        return false;
+      });
+    } catch (err) {
+      setFolders((prev) => prev.filter((f) => f.id !== id));
+      window.alert(`Could not create folder: ${err.message}`);
+    }
   };
 
   const renameFolder = async (folder) => {
     const name = window.prompt('Rename folder:', folder.name);
     if (!name || !name.trim() || name === folder.name) return;
-    await appsScriptPost(SANDBOX_API_URL, {
-      action: 'renameProjectFolder',
-      payload: JSON.stringify({ id: folder.id, name: name.trim() }),
-    });
-    await verifyByPolling(async () => {
-      const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
-      if (rows.find((f) => f.id === folder.id && f.name === name.trim())) {
-        setFolders(rows);
-        return true;
-      }
-      return false;
-    });
+    const previousName = folder.name;
+    setFolders((prev) => prev.map((f) => (f.id === folder.id ? { ...f, name: name.trim() } : f)));
+    try {
+      await appsScriptPost(SANDBOX_API_URL, { action: 'renameProjectFolder', payload: JSON.stringify({ id: folder.id, name: name.trim() }) });
+      await verifyByPolling(async () => {
+        const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
+        if (rows.find((f) => f.id === folder.id && f.name === name.trim())) {
+          setFolders(rows);
+          return true;
+        }
+        return false;
+      });
+    } catch (err) {
+      setFolders((prev) => prev.map((f) => (f.id === folder.id ? { ...f, name: previousName } : f)));
+      window.alert(`Could not rename folder: ${err.message}`);
+    }
   };
 
   const deleteFolder = async (folder) => {
@@ -137,34 +152,48 @@ export default function Browse() {
       ? `Delete "${folder.name}"? ${count} project${count !== 1 ? 's' : ''} inside will move to Uncategorized.`
       : `Delete "${folder.name}"?`;
     if (!window.confirm(msg)) return;
-    await appsScriptPost(SANDBOX_API_URL, { action: 'deleteProjectFolder', payload: JSON.stringify({ id: folder.id }) });
-    await verifyByPolling(async () => {
-      const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
-      if (!rows.find((f) => f.id === folder.id)) {
-        setFolders(rows);
-        return true;
-      }
-      return false;
-    });
-    const freshProjects = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
-    setProjects(freshProjects);
+    const previousFolders = folders;
+    const previousProjects = projects;
+    setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+    setProjects((prev) => prev.map((p) => (p.projectFolderId === folder.id ? { ...p, projectFolderId: null } : p)));
     if (selectedFolderId === folder.id) setSelectedFolderId('__all__');
+    try {
+      await appsScriptPost(SANDBOX_API_URL, { action: 'deleteProjectFolder', payload: JSON.stringify({ id: folder.id }) });
+      await verifyByPolling(async () => {
+        const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
+        if (!rows.find((f) => f.id === folder.id)) {
+          setFolders(rows);
+          return true;
+        }
+        return false;
+      });
+      const freshProjects = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
+      setProjects(freshProjects);
+    } catch (err) {
+      setFolders(previousFolders);
+      setProjects(previousProjects);
+      window.alert(`Could not delete folder: ${err.message}`);
+    }
   };
 
   const moveProjectToFolder = async (project, folderId) => {
-    await appsScriptPost(SANDBOX_API_URL, {
-      action: 'updateProject',
-      payload: JSON.stringify({ id: project.id, projectFolderId: folderId || null }),
-    });
-    await verifyByPolling(async () => {
-      const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
-      const updated = rows.find((p) => p.id === project.id);
-      if (updated && (updated.projectFolderId || null) === (folderId || null)) {
-        setProjects(rows);
-        return true;
-      }
-      return false;
-    });
+    const previousFolderId = project.projectFolderId || null;
+    setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, projectFolderId: folderId || null } : p)));
+    try {
+      await appsScriptPost(SANDBOX_API_URL, { action: 'updateProject', payload: JSON.stringify({ id: project.id, projectFolderId: folderId || null }) });
+      await verifyByPolling(async () => {
+        const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
+        const updated = rows.find((p) => p.id === project.id);
+        if (updated && (updated.projectFolderId || null) === (folderId || null)) {
+          setProjects(rows);
+          return true;
+        }
+        return false;
+      });
+    } catch (err) {
+      setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, projectFolderId: previousFolderId } : p)));
+      window.alert(`Could not move project: ${err.message}`);
+    }
   };
 
   if (status === 'loading') return <p>Loading…</p>;
