@@ -181,7 +181,7 @@ export default function SandboxCheck() {
       <ul>
         {versions.map((v) => (
           <li key={v.id}>
-            {v.name} — completed {v.completedDate} — ${v.totalInvestment}
+            {v.name} — completed {v.completedDate} — ${v.totalInvestment} — {(v.packages || []).length} packages
           </li>
         ))}
       </ul>
