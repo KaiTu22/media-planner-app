@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import Assignment from './pages/Assignment';
 import BackendCheck from './pages/BackendCheck';
+import Browse from './pages/Browse';
 import { PLANNER_TOOL_URL } from './api/config';
 import LogLayout from './pages/log/LogLayout';
 import PlansLog from './pages/log/PlansLog';
@@ -34,6 +35,7 @@ function App() {
     <div className="shell">
       <nav className="shell-nav">
         <NavLink to="/" end>Assignment</NavLink>
+        <NavLink to="/browse">Browse</NavLink>
         <NavLink to="/log">Log</NavLink>
         <NavLink to="/reporting">Reporting</NavLink>
         <NavLink to="/planner">Planner</NavLink>
@@ -43,6 +45,7 @@ function App() {
       <main className="shell-main">
         <Routes>
           <Route path="/" element={<Assignment />} />
+          <Route path="/browse" element={<Browse />} />
           <Route path="/log" element={<LogLayout />}>
             <Route index element={<Navigate to="projects" replace />} />
             <Route path="projects" element={<ProjectsLog />} />
