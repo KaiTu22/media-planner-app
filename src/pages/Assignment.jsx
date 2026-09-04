@@ -27,6 +27,7 @@ const emptyForm = {
   scratchpadLink: '',
   budgetSheetLink: '',
   sponsorshipPlansLink: '',
+  notifyEmails: [], // picked from the Users list; joined to a comma string at submit (§6.1 step 5)
 };
 
 // §6.1 Assignment flow — creates a PROJECT record. pitchTeam/holdCo are
@@ -62,6 +63,15 @@ export default function Assignment() {
     setForm((f) => ({ ...f, [field]: value }));
   };
 
+  const toggleNotifyEmail = (email) => (e) => {
+    setForm((f) => ({
+      ...f,
+      notifyEmails: e.target.checked
+        ? [...f.notifyEmails, email]
+        : f.notifyEmails.filter((x) => x !== email),
+    }));
+  };
+
   const addTentpoleShow = async () => {
     if (!newShowName.trim()) return;
     const id = `show-${Date.now()}`;
@@ -91,7 +101,7 @@ export default function Assignment() {
     try {
       await appsScriptPost(SANDBOX_API_URL, {
         action: 'createProject',
-        payload: JSON.stringify({ id, ...form }),
+        payload: JSON.stringify({ id, ...form, notifyEmails: form.notifyEmails.join(',') }),
       });
       const project = await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
@@ -163,6 +173,20 @@ export default function Assignment() {
           <label>Sales Account Manager <input value={form.salesAccountManager} onChange={updateField('salesAccountManager')} /></label>
           <label>Yield Contact <input value={form.yieldContact} onChange={updateField('yieldContact')} /></label>
         </details>
+
+        <fieldset>
+          <legend>Notify additional team members (§6.1 step 5)</legend>
+          {lookups.users.map((u) => (
+            <label key={u.email} style={{ display: 'block' }}>
+              <input
+                type="checkbox"
+                checked={form.notifyEmails.includes(u.email)}
+                onChange={toggleNotifyEmail(u.email)}
+              />
+              {' '}{u.name || u.email}
+            </label>
+          ))}
+        </fieldset>
 
         <label>
           <input type="checkbox" checked={form.rushRequest} onChange={updateField('rushRequest')} /> Rush Request
