@@ -98,10 +98,22 @@ export default function Browse() {
   // Optimistic updates throughout: Apps Script writes give no readable
   // response (X-Frame-Options blocks it), so confirming a write means
   // polling a follow-up read — a couple of seconds even when everything
-  // works. Updating local state immediately and reconciling with the real
-  // backend state in the background (rolling back only on actual failure)
-  // makes the UI feel instant for the common case instead of visibly
-  // lagging behind every click.
+  // works. Updating local state immediately and reconciling in the
+  // background (rolling back only on actual failure) makes the UI feel
+  // instant for the common case.
+  //
+  // Important: the verify step below only *checks* the read, it never
+  // calls setState with the fetched rows. Earlier it did a full-list
+  // replace on every poll — with two actions in flight close together
+  // (e.g. create-then-delete, or two quick creates), whichever fetch
+  // happened to land last would silently overwrite the other action's
+  // still-pending optimistic state, or resurrect/erase items based on
+  // whatever partial state the backend happened to be in at that instant
+  // (confirmed bug 2026-09-08: a folder would appear/disappear/reappear,
+  // and deleting one folder could make an unrelated one vanish). Rollbacks
+  // are similarly targeted at just the one changed item, never a stale
+  // full-array snapshot captured at the start of the action, since other
+  // actions may have legitimately changed the array in the meantime.
   const createFolder = async (parentId) => {
     const name = window.prompt('Name this folder:');
     if (!name || !name.trim()) return;
@@ -113,11 +125,7 @@ export default function Browse() {
       await appsScriptPost(SANDBOX_API_URL, { action: 'createProjectFolder', payload: JSON.stringify(optimisticFolder) });
       await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
-        if (rows.find((f) => f.id === id)) {
-          setFolders(rows);
-          return true;
-        }
-        return false;
+        return rows.some((f) => f.id === id);
       });
     } catch (err) {
       setFolders((prev) => prev.filter((f) => f.id !== id));
@@ -134,11 +142,7 @@ export default function Browse() {
       await appsScriptPost(SANDBOX_API_URL, { action: 'renameProjectFolder', payload: JSON.stringify({ id: folder.id, name: name.trim() }) });
       await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
-        if (rows.find((f) => f.id === folder.id && f.name === name.trim())) {
-          setFolders(rows);
-          return true;
-        }
-        return false;
+        return rows.some((f) => f.id === folder.id && f.name === name.trim());
       });
     } catch (err) {
       setFolders((prev) => prev.map((f) => (f.id === folder.id ? { ...f, name: previousName } : f)));
@@ -152,26 +156,19 @@ export default function Browse() {
       ? `Delete "${folder.name}"? ${count} project${count !== 1 ? 's' : ''} inside will move to Uncategorized.`
       : `Delete "${folder.name}"?`;
     if (!window.confirm(msg)) return;
-    const previousFolders = folders;
-    const previousProjects = projects;
+    const affectedProjectIds = projects.filter((p) => p.projectFolderId === folder.id).map((p) => p.id);
     setFolders((prev) => prev.filter((f) => f.id !== folder.id));
-    setProjects((prev) => prev.map((p) => (p.projectFolderId === folder.id ? { ...p, projectFolderId: null } : p)));
+    setProjects((prev) => prev.map((p) => (affectedProjectIds.includes(p.id) ? { ...p, projectFolderId: null } : p)));
     if (selectedFolderId === folder.id) setSelectedFolderId('__all__');
     try {
       await appsScriptPost(SANDBOX_API_URL, { action: 'deleteProjectFolder', payload: JSON.stringify({ id: folder.id }) });
       await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjectFolders' });
-        if (!rows.find((f) => f.id === folder.id)) {
-          setFolders(rows);
-          return true;
-        }
-        return false;
+        return !rows.some((f) => f.id === folder.id);
       });
-      const freshProjects = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
-      setProjects(freshProjects);
     } catch (err) {
-      setFolders(previousFolders);
-      setProjects(previousProjects);
+      setFolders((prev) => [...prev, folder]);
+      setProjects((prev) => prev.map((p) => (affectedProjectIds.includes(p.id) ? { ...p, projectFolderId: folder.id } : p)));
       window.alert(`Could not delete folder: ${err.message}`);
     }
   };
@@ -184,11 +181,7 @@ export default function Browse() {
       await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
         const updated = rows.find((p) => p.id === project.id);
-        if (updated && (updated.projectFolderId || null) === (folderId || null)) {
-          setProjects(rows);
-          return true;
-        }
-        return false;
+        return !!updated && (updated.projectFolderId || null) === (folderId || null);
       });
     } catch (err) {
       setProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, projectFolderId: previousFolderId } : p)));
