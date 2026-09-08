@@ -34,14 +34,18 @@ function App() {
 
   return (
     <div className="shell">
-      <nav className="shell-nav">
-        <NavLink to="/" end>Assignment</NavLink>
-        <NavLink to="/browse">Browse</NavLink>
-        <NavLink to="/log">Log</NavLink>
-        <NavLink to="/reporting">Reporting</NavLink>
-        <NavLink to="/backend-check">Backend check</NavLink>
-        <NavLink to="/sandbox-check">Sandbox check</NavLink>
-      </nav>
+      <header className="shell-header">
+        <div className="wordmark">MEDIA PLANNER</div>
+        <div className="wordmark-sub">Paramount Skydance · Media Planning Tool</div>
+        <nav className="shell-nav">
+          <NavLink to="/" end>Assignment</NavLink>
+          <NavLink to="/browse">Browse</NavLink>
+          <NavLink to="/log">Log</NavLink>
+          <NavLink to="/reporting">Reporting</NavLink>
+          <NavLink to="/backend-check">Backend check</NavLink>
+          <NavLink to="/sandbox-check">Sandbox check</NavLink>
+        </nav>
+      </header>
       <main className="shell-main">
         <Routes>
           <Route path="/" element={<Assignment />} />
