@@ -78,9 +78,9 @@ export default function ProjectsLog() {
   const pitchTeams = useMemo(() => uniqueValues(projects, 'pitchTeam'), [projects]);
   const dealCategories = useMemo(() => uniqueValues(projects, 'dealCategory'), [projects]);
 
-  const myAssignments = useMemo(() => {
+  const myOpenAssignments = useMemo(() => {
     if (!whoami) return [];
-    return projects.filter((p) => p.leadMediaPlannerEmail === whoami.email);
+    return projects.filter((p) => p.leadMediaPlannerEmail === whoami.email && p.mediaPlanStatus !== 'Complete');
   }, [projects, whoami]);
 
   const filtered = useMemo(() => {
@@ -107,11 +107,11 @@ export default function ProjectsLog() {
 
   return (
     <div>
-      {myAssignments.length > 0 && (
+      {myOpenAssignments.length > 0 && (
         <div style={{ marginBottom: 24, padding: 12, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 6 }}>
-          <h3 style={{ marginTop: 0 }}>My Assignments ({myAssignments.length})</h3>
+          <h3 style={{ marginTop: 0 }}>My Open Assignments ({myOpenAssignments.length})</h3>
           <ProjectTable
-            projects={myAssignments}
+            projects={myOpenAssignments}
             showNameById={showNameById}
             updateProjectField={updateProjectField}
           />
