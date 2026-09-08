@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { jsonpRequest } from '../../api/appsScript';
 import { SANDBOX_API_URL } from '../../api/config';
 
@@ -99,7 +100,7 @@ export default function ProjectsLog() {
           <tr>
             <th>Project</th><th>Account / Brand</th><th>Agency</th><th>Pitch Team</th>
             <th>Lead Planner</th><th>Media Plan Status</th><th>Deal Status</th>
-            <th>Deal Category</th><th>Tentpole Show</th><th>Plan Due</th><th>Folder</th>
+            <th>Deal Category</th><th>Tentpole Show</th><th>Plan Due</th><th>Folder</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -116,6 +117,7 @@ export default function ProjectsLog() {
               <td>{p.tentpoleShowId ? (showNameById[p.tentpoleShowId] || p.tentpoleShowId) : ''}</td>
               <td>{p.planDueDate}</td>
               <td>{p.driveFolderLink && <a href={p.driveFolderLink} target="_blank" rel="noreferrer">Open</a>}</td>
+              <td><Link to={`/planner/${p.id}`}>Open in Planner</Link></td>
             </tr>
           ))}
         </tbody>

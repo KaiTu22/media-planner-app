@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { appsScriptPost, jsonpRequest, verifyByPolling } from '../api/appsScript';
 import { SANDBOX_API_URL } from '../api/config';
 
@@ -235,6 +236,7 @@ export default function Assignment() {
           {created.driveFolderLink && (
             <p><a href={created.driveFolderLink} target="_blank" rel="noreferrer">Drive folder</a></p>
           )}
+          <p><Link to="/log/projects">View in Assignment Log →</Link></p>
         </div>
       )}
     </div>
