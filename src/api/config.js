@@ -9,7 +9,8 @@ export const CLOSED_DEALS_API_URL =
 export const SANDBOX_API_URL =
   'https://script.google.com/macros/s/AKfycbxSFOffhttkk_81Y-ivuSOcPFWhlTwfNaOzW3Zw5toMnKRreZ4UYVaAkUfiemwltvfx/exec';
 
-// Planner tool (media-planner-tool repo) — still a separate vanilla-JS page,
-// not folded into this app's routing until Phase E (§8). Update this once
-// it has a real hosted URL; local dev server for now.
-export const PLANNER_TOOL_URL = 'http://localhost:8899/index.html';
+// Planner tool (media-planner-tool repo) — still a separate vanilla-JS page
+// under the hood, embedded via <iframe> at /planner/:projectId (§7, §8) so
+// it's reachable at the same URL as everything else. Hosted on GitHub Pages,
+// same pattern as this app and Deal Dashboard.
+export const PLANNER_TOOL_URL = 'https://kaitu22.github.io/media-planner-tool/index.html';
