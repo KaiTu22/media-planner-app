@@ -15,7 +15,7 @@ export default function PlannerFrame() {
     return (
       <div>
         <h2>Planner</h2>
-        <p>Pick a project from <Link to="/browse">Browse</Link> to open it here.</p>
+        <p>Pick a project from the <Link to="/log/projects">Assignment Log</Link> to open it here.</p>
       </div>
     );
   }

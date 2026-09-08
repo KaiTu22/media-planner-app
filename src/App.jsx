@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
 import Assignment from './pages/Assignment';
 import BackendCheck from './pages/BackendCheck';
-import Browse from './pages/Browse';
 import LogLayout from './pages/log/LogLayout';
 import PlansLog from './pages/log/PlansLog';
 import ProjectsLog from './pages/log/ProjectsLog';
@@ -22,10 +21,12 @@ function App() {
   // The embedded Planner tool posts this when its own "Back to Projects"
   // is clicked (confirmed 2026-09-08) — it can't navigate the parent shell
   // directly since it's a same-window <iframe>, not a same-origin child.
+  // Points at the Log now that Browse is retired (confirmed 2026-09-08 —
+  // folded into the Log as a managed tag system instead).
   useEffect(() => {
     function onMessage(event) {
-      if (event.data && event.data.type === 'planner:back-to-browse') {
-        navigate('/browse');
+      if (event.data && event.data.type === 'planner:back-to-log') {
+        navigate('/log/projects');
       }
     }
     window.addEventListener('message', onMessage);
@@ -39,7 +40,6 @@ function App() {
         <div className="wordmark-sub">Paramount Skydance · Media Planning Tool</div>
         <nav className="shell-nav">
           <NavLink to="/" end>Assignment</NavLink>
-          <NavLink to="/browse">Browse</NavLink>
           <NavLink to="/log">Log</NavLink>
           <NavLink to="/reporting">Reporting</NavLink>
           <NavLink to="/backend-check">Backend check</NavLink>
@@ -49,7 +49,6 @@ function App() {
       <main className="shell-main">
         <Routes>
           <Route path="/" element={<Assignment />} />
-          <Route path="/browse" element={<Browse />} />
           <Route path="/log" element={<LogLayout />}>
             <Route index element={<Navigate to="projects" replace />} />
             <Route path="projects" element={<ProjectsLog />} />
