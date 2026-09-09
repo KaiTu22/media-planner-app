@@ -2,12 +2,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { appsScriptPost, jsonpRequest, verifyByPolling } from '../../api/appsScript';
 import { SANDBOX_API_URL } from '../../api/config';
+import ProjectDetailsModal from '../../components/ProjectDetailsModal';
 
 // §6.2 step 4 / step 5 — Media Plan Status progresses Pre-Planning -> Info
 // Pending -> In Progress -> (Revision in Progress ->) Complete; Deal Status
 // is a separate, independent field set once the deal actually resolves.
 const MEDIA_PLAN_STATUSES = ['Pre-Planning', 'Info Pending', 'In Progress', 'Revision in Progress', 'Complete'];
 const DEAL_STATUSES = ['Won', 'Lost', 'Cancelled', 'Client Review'];
+
+// Confirmed 2026-09-09: real screenshot showed a full ISO timestamp
+// ("2026-09-10T00:00:00.000Z") — Sheets round-trips a date-only value
+// through a real Date object — eating a lot of column width for no reason.
+function formatShortDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d)) return value;
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+}
 
 // §6.3 Assignment Log (/log/projects) — a derived, read-only view over
 // PROJECT records, not a separately maintained sheet. Filtering only, never
@@ -21,13 +32,21 @@ const DEAL_STATUSES = ['Won', 'Lost', 'Cancelled', 'Client Review'];
 // groupings ("Q1" + "Tentpole" + "Priority" at once) that a single-parent
 // folder hierarchy couldn't represent. This consolidates "find/organize a
 // project" into one page instead of two overlapping ones.
+//
+// Table columns kept intentionally minimal (confirmed 2026-09-09, real
+// screenshot showed the table wider than the page even after a density
+// pass): Agency, Pitch Team, Deal Category, Tentpole Show, and the Drive
+// Folder link all moved into the "Details" edit modal instead of being
+// their own columns — which also finally gives editing access to fields
+// (links, dates, additional team members) that had no edit UI anywhere
+// before this, since Assignment only ever set them once at creation.
 export default function ProjectsLog() {
   const [whoami, setWhoami] = useState(null);
   const [projects, setProjects] = useState([]);
-  const [tentpoleShows, setTentpoleShows] = useState([]);
   const [tags, setTags] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
+  const [editingProject, setEditingProject] = useState(null);
 
   const [search, setSearch] = useState('');
   const [myProjectsOnly, setMyProjectsOnly] = useState(false);
@@ -45,13 +64,11 @@ export default function ProjectsLog() {
     Promise.all([
       jsonpRequest(SANDBOX_API_URL, { action: 'whoami' }),
       jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' }),
-      jsonpRequest(SANDBOX_API_URL, { action: 'listTentpoleShows' }),
       jsonpRequest(SANDBOX_API_URL, { action: 'listTags' }),
     ])
-      .then(([user, projectRows, shows, tagRows]) => {
+      .then(([user, projectRows, tagRows]) => {
         setWhoami(user);
         setProjects(projectRows);
-        setTentpoleShows(shows);
         setTags(tagRows);
         setStatus('done');
       })
@@ -132,12 +149,6 @@ export default function ProjectsLog() {
     }
   };
 
-  const showNameById = useMemo(() => {
-    const map = {};
-    tentpoleShows.forEach((s) => { map[s.id] = s.name; });
-    return map;
-  }, [tentpoleShows]);
-
   const pitchTeams = useMemo(() => uniqueValues(projects, 'pitchTeam'), [projects]);
   const dealCategories = useMemo(() => uniqueValues(projects, 'dealCategory'), [projects]);
 
@@ -176,11 +187,11 @@ export default function ProjectsLog() {
           <h3 style={{ marginTop: 0 }}>My Open Assignments ({myOpenAssignments.length})</h3>
           <ProjectTable
             projects={myOpenAssignments}
-            showNameById={showNameById}
             tags={tags}
             updateProjectField={updateProjectField}
             addTagToProject={addTagToProject}
             removeTagFromProject={removeTagFromProject}
+            onEdit={setEditingProject}
           />
         </div>
       )}
@@ -226,26 +237,36 @@ export default function ProjectsLog() {
 
       <ProjectTable
         projects={filtered}
-        showNameById={showNameById}
         tags={tags}
         updateProjectField={updateProjectField}
         addTagToProject={addTagToProject}
         removeTagFromProject={removeTagFromProject}
+        onEdit={setEditingProject}
       />
+
+      {editingProject && (
+        <ProjectDetailsModal
+          project={editingProject}
+          onClose={() => setEditingProject(null)}
+          onSaved={(updated) => {
+            setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+            setEditingProject(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function ProjectTable({ projects, showNameById, tags, updateProjectField, addTagToProject, removeTagFromProject }) {
+function ProjectTable({ projects, tags, updateProjectField, addTagToProject, removeTagFromProject, onEdit }) {
   return (
     <div className="table-scroll">
     <table>
       <thead>
         <tr>
-          <th>Project</th><th>Account / Brand</th><th>Agency</th><th>Pitch Team</th>
+          <th>Project</th><th>Account / Brand</th>
           <th>Lead Planner</th><th>Media Plan Status</th><th>Deal Status</th>
-          <th>Deal Category</th><th>Tentpole Show</th><th>Tags</th><th>Plan Due</th>
-          <th>Drive Folder</th><th></th>
+          <th>Tags</th><th>Plan Due</th><th></th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -256,8 +277,6 @@ function ProjectTable({ projects, showNameById, tags, updateProjectField, addTag
             <tr key={p.id}>
               <td>{p.projectName}</td>
               <td>{p.account} / {p.brand}</td>
-              <td>{p.agency}</td>
-              <td>{p.pitchTeam}</td>
               <td>{p.leadMediaPlannerEmail}</td>
               <td>
                 <select value={p.mediaPlanStatus || ''} onChange={(e) => updateProjectField(p, 'mediaPlanStatus', e.target.value)}>
@@ -270,8 +289,6 @@ function ProjectTable({ projects, showNameById, tags, updateProjectField, addTag
                   {DEAL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </td>
-              <td>{p.dealCategory}</td>
-              <td>{p.tentpoleShowId ? (showNameById[p.tentpoleShowId] || p.tentpoleShowId) : ''}</td>
               <td>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                   {projectTags.map((tagName) => (
@@ -281,16 +298,16 @@ function ProjectTable({ projects, showNameById, tags, updateProjectField, addTag
                     </span>
                   ))}
                   {availableTags.length > 0 && (
-                    <select value="" onChange={(e) => addTagToProject(p, e.target.value)} style={{ minWidth: 90, fontSize: '0.74rem', padding: '2px 6px' }}>
+                    <select value="" onChange={(e) => addTagToProject(p, e.target.value)} style={{ minWidth: 80, fontSize: '0.74rem', padding: '2px 6px' }}>
                       <option value="">+ tag</option>
                       {availableTags.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
                     </select>
                   )}
                 </div>
               </td>
-              <td>{p.planDueDate}</td>
-              <td>{p.driveFolderLink && <a className="btn-link" href={p.driveFolderLink} target="_blank" rel="noreferrer">Open Folder</a>}</td>
-              <td><Link className="btn-link btn-link-primary" to={`/planner/${p.id}`}>Open in Planner</Link></td>
+              <td>{formatShortDate(p.planDueDate)}</td>
+              <td><button className="btn-link" onClick={() => onEdit(p)}>Details</button></td>
+              <td><Link className="btn-link btn-link-primary" to={`/planner/${p.id}`}>Open Planner</Link></td>
             </tr>
           );
         })}
