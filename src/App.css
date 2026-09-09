@@ -51,7 +51,50 @@
 }
 
 .shell-main {
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 20px 28px;
+}
+
+/* Wide Log tables were forcing the *whole page* to scroll horizontally
+   (confirmed 2026-09-09, real screenshot) instead of just the table —
+   this contains the scroll to the table itself, so the nav/filters stay
+   put and only the table's own overflow scrolls. */
+.table-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+.table-scroll table {
+  box-shadow: none;
+}
+
+/* Turns a plain link into a real button — used for repeated row actions
+   (Open, Open in Planner) and the Assignment/Plans Log sub-nav, per
+   feedback 2026-09-09 that plain text links didn't read as actionable. */
+.btn-link {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary) !important;
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-decoration: none !important;
+  white-space: nowrap;
+}
+.btn-link:hover {
+  border-color: var(--accent);
+  color: var(--accent) !important;
+}
+.btn-link-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white !important;
+}
+.btn-link-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: white !important;
 }

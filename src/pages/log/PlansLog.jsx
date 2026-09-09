@@ -87,6 +87,7 @@ export default function PlansLog() {
         <label>Completed to <input type="date" value={completedTo} onChange={(e) => setCompletedTo(e.target.value)} /></label>
       </div>
 
+      <div className="table-scroll">
       <table>
         <thead>
           <tr>
@@ -109,12 +110,13 @@ export default function PlansLog() {
                 <td>{(v.completedDate || '').slice(0, 10)}</td>
                 <td>{v.totalInvestment != null ? `$${v.totalInvestment}` : ''}</td>
                 <td>{v.versionStatus}</td>
-                <td>{folderLink && <a href={folderLink} target="_blank" rel="noreferrer">Open</a>}</td>
+                <td>{folderLink && <a className="btn-link" href={folderLink} target="_blank" rel="noreferrer">Open Folder</a>}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

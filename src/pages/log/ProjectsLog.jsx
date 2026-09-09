@@ -238,6 +238,7 @@ export default function ProjectsLog() {
 
 function ProjectTable({ projects, showNameById, tags, updateProjectField, addTagToProject, removeTagFromProject }) {
   return (
+    <div className="table-scroll">
     <table>
       <thead>
         <tr>
@@ -288,13 +289,14 @@ function ProjectTable({ projects, showNameById, tags, updateProjectField, addTag
                 </div>
               </td>
               <td>{p.planDueDate}</td>
-              <td>{p.driveFolderLink && <a href={p.driveFolderLink} target="_blank" rel="noreferrer">Open →</a>}</td>
-              <td><Link to={`/planner/${p.id}`}>Open in Planner</Link></td>
+              <td>{p.driveFolderLink && <a className="btn-link" href={p.driveFolderLink} target="_blank" rel="noreferrer">Open Folder</a>}</td>
+              <td><Link className="btn-link btn-link-primary" to={`/planner/${p.id}`}>Open in Planner</Link></td>
             </tr>
           );
         })}
       </tbody>
     </table>
+    </div>
   );
 }
 
