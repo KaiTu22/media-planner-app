@@ -3,22 +3,13 @@ import { Link } from 'react-router-dom';
 import { appsScriptPost, jsonpRequest, verifyByPolling } from '../../api/appsScript';
 import { SANDBOX_API_URL } from '../../api/config';
 import ProjectDetailsModal from '../../components/ProjectDetailsModal';
+import { formatDisplayDate } from '../../components/ProjectFormFields';
 
 // §6.2 step 4 / step 5 — Media Plan Status progresses Pre-Planning -> Info
 // Pending -> In Progress -> (Revision in Progress ->) Complete; Deal Status
 // is a separate, independent field set once the deal actually resolves.
 const MEDIA_PLAN_STATUSES = ['Pre-Planning', 'Info Pending', 'In Progress', 'Revision in Progress', 'Complete'];
 const DEAL_STATUSES = ['Won', 'Lost', 'Cancelled', 'Client Review'];
-
-// Confirmed 2026-09-09: real screenshot showed a full ISO timestamp
-// ("2026-09-10T00:00:00.000Z") — Sheets round-trips a date-only value
-// through a real Date object — eating a lot of column width for no reason.
-function formatShortDate(value) {
-  if (!value) return '';
-  const d = new Date(value);
-  if (isNaN(d)) return value;
-  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
-}
 
 // §6.3 Assignment Log (/log/projects) — a derived, read-only view over
 // PROJECT records, not a separately maintained sheet. Filtering only, never
@@ -305,7 +296,7 @@ function ProjectTable({ projects, tags, updateProjectField, addTagToProject, rem
                   )}
                 </div>
               </td>
-              <td>{formatShortDate(p.planDueDate)}</td>
+              <td>{formatDisplayDate(p.planDueDate)}</td>
               <td><button className="btn-link" onClick={() => onEdit(p)}>Details</button></td>
               <td><Link className="btn-link btn-link-primary" to={`/planner/${p.id}`}>Open Planner</Link></td>
             </tr>

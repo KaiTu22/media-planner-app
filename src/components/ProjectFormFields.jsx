@@ -29,6 +29,13 @@ export const emptyProjectForm = {
   notifyEmails: [], // picked from the Users list; joined to a comma string at submit (§6.1 step 5)
 };
 
+export function formatDisplayDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d)) return value;
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+}
+
 export function loadProjectLookups() {
   return Promise.all([
     jsonpRequest(SANDBOX_API_URL, { action: 'listUsers' }),
