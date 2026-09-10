@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { appsScriptPost, jsonpRequest, verifyByPolling } from '../api/appsScript';
 import { SANDBOX_API_URL } from '../api/config';
 import ProjectFormFields, { emptyProjectForm, loadProjectLookups } from './ProjectFormFields';
@@ -18,7 +18,7 @@ export default function NewAssignmentModal({ onClose, onCreated }) {
   const [error, setError] = useState(null);
   const [created, setCreated] = useState(null);
 
-  useState(() => {
+  useEffect(() => {
     loadProjectLookups().then(setLookups).catch((err) => setLookupError(err.message));
   }, []);
 
