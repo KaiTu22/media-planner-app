@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
-import Assignment from './pages/Assignment';
 import BackendCheck from './pages/BackendCheck';
 import LogLayout from './pages/log/LogLayout';
 import PlansLog from './pages/log/PlansLog';
 import ProjectsLog from './pages/log/ProjectsLog';
 import PlannerFrame from './pages/PlannerFrame';
 import SandboxCheck from './pages/SandboxCheck';
+import TagsSettings from './pages/settings/TagsSettings';
 import './App.css';
 
 // Placeholder shell — Reporting becomes a real route once Deal Dashboard is
@@ -39,22 +39,23 @@ function App() {
         <div className="wordmark">MEDIA PLANNER</div>
         <div className="wordmark-sub">Paramount Skydance · Media Planning Tool</div>
         <nav className="shell-nav">
-          <NavLink to="/" end>Assignment</NavLink>
-          <NavLink to="/log">Log</NavLink>
+          <NavLink to="/log" end>Log</NavLink>
           <NavLink to="/reporting">Reporting</NavLink>
+          <NavLink to="/settings/tags">Settings</NavLink>
           <NavLink to="/backend-check">Backend check</NavLink>
           <NavLink to="/sandbox-check">Sandbox check</NavLink>
         </nav>
       </header>
       <main className="shell-main">
         <Routes>
-          <Route path="/" element={<Assignment />} />
+          <Route path="/" element={<Navigate to="/log" replace />} />
           <Route path="/log" element={<LogLayout />}>
             <Route index element={<Navigate to="projects" replace />} />
             <Route path="projects" element={<ProjectsLog />} />
             <Route path="plans" element={<PlansLog />} />
           </Route>
           <Route path="/reporting" element={<Placeholder title="Reporting" />} />
+          <Route path="/settings/tags" element={<TagsSettings />} />
           <Route path="/planner" element={<PlannerFrame />} />
           <Route path="/planner/:projectId" element={<PlannerFrame />} />
           <Route path="/backend-check" element={<BackendCheck />} />

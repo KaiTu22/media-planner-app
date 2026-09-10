@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { jsonpRequest } from '../../api/appsScript';
 import { SANDBOX_API_URL } from '../../api/config';
 
@@ -92,7 +93,7 @@ export default function PlansLog() {
         <thead>
           <tr>
             <th>Version</th><th>Project</th><th>Account / Brand</th><th>Lead Planner</th>
-            <th>Completed</th><th>Total Investment</th><th>Status</th><th>Folder</th>
+            <th>Completed</th><th>Total Investment</th><th>Status</th><th>Folder</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -111,6 +112,7 @@ export default function PlansLog() {
                 <td>{v.totalInvestment != null ? `$${v.totalInvestment}` : ''}</td>
                 <td>{v.versionStatus}</td>
                 <td>{folderLink && <a className="btn-link" href={folderLink} target="_blank" rel="noreferrer">Open Folder</a>}</td>
+                <td>{project && <Link className="btn-link btn-link-primary" to={`/planner/${project.id}`}>Open Planner</Link>}</td>
               </tr>
             );
           })}

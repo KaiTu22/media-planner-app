@@ -80,11 +80,11 @@ export default function ProjectDetailsModal({ project, onClose, onSaved }) {
   const showName = (id) => lookups?.tentpoleShows.find((s) => s.id === id)?.name || id;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(43,38,32,0.35)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px', overflowY: 'auto', zIndex: 100 }}>
-      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius-card)', boxShadow: 'var(--shadow-card)', padding: 28, maxWidth: 560, width: '100%' }}>
+    <div className="modal-overlay">
+      <div className="modal-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <h2>{mode === 'edit' ? 'Edit Assignment' : project.projectName}</h2>
-          <button onClick={onClose} style={{ border: 'none', background: 'none' }}>✕</button>
+          <button onClick={onClose} className="modal-close">✕</button>
         </div>
 
         {lookupError && <p style={{ color: 'crimson' }}>Failed to load: {lookupError}</p>}
@@ -187,7 +187,7 @@ function ViewLinkRow({ label, href }) {
   return (
     <div style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--border-soft)', fontSize: '0.88rem' }}>
       <span style={{ flex: '0 0 220px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.82rem' }}>{label}</span>
-      <a href={href} target="_blank" rel="noreferrer">{href} ↗</a>
+      <a href={href} target="_blank" rel="noreferrer" style={{ overflowWrap: 'anywhere', minWidth: 0 }}>{href} ↗</a>
     </div>
   );
 }

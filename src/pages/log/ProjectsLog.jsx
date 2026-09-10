@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { appsScriptPost, jsonpRequest, verifyByPolling } from '../../api/appsScript';
 import { SANDBOX_API_URL } from '../../api/config';
+import NewAssignmentModal from '../../components/NewAssignmentModal';
 import ProjectDetailsModal from '../../components/ProjectDetailsModal';
 import { formatDisplayDate } from '../../components/ProjectFormFields';
 
@@ -10,6 +11,26 @@ import { formatDisplayDate } from '../../components/ProjectFormFields';
 // is a separate, independent field set once the deal actually resolves.
 const MEDIA_PLAN_STATUSES = ['Pre-Planning', 'Info Pending', 'In Progress', 'Revision in Progress', 'Complete'];
 const DEAL_STATUSES = ['Won', 'Lost', 'Cancelled', 'Client Review'];
+
+// Status color coding (confirmed 2026-09-10) — lets someone scanning the
+// whole log spot at-a-glance state without reading every cell.
+const MEDIA_PLAN_STATUS_COLORS = {
+  'Pre-Planning': { bg: '#EAE2D6', fg: '#57503F' },
+  'Info Pending': { bg: '#DCEBFF', fg: '#0052CC' },
+  'In Progress': { bg: '#FAE1E6', fg: '#C24463' },
+  'Revision in Progress': { bg: '#FAE1E6', fg: '#C24463' },
+  'Complete': { bg: '#E4F5F2', fg: '#0E9F8E' },
+};
+const DEAL_STATUS_COLORS = {
+  'Won': { bg: '#E4F5F2', fg: '#0E9F8E' },
+  'Lost': { bg: '#FAE9EE', fg: '#C24463' },
+  'Client Review': { bg: '#EAE2D6', fg: '#57503F' },
+  'Cancelled': { bg: '#2B2620', fg: '#FFFFFF' },
+};
+function statusStyle(map, value) {
+  const c = map[value];
+  return c ? { background: c.bg, color: c.fg, fontWeight: 600 } : undefined;
+}
 
 // §6.3 Assignment Log (/log/projects) — a derived, read-only view over
 // PROJECT records, not a separately maintained sheet. Filtering only, never
@@ -38,6 +59,7 @@ export default function ProjectsLog() {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [editingProject, setEditingProject] = useState(null);
+  const [showNewAssignment, setShowNewAssignment] = useState(false);
 
   const [search, setSearch] = useState('');
   const [myProjectsOnly, setMyProjectsOnly] = useState(false);
@@ -48,7 +70,6 @@ export default function ProjectsLog() {
   const [tagFilter, setTagFilter] = useState('');
   const [dueFrom, setDueFrom] = useState('');
   const [dueTo, setDueTo] = useState('');
-  const [newTagName, setNewTagName] = useState('');
 
   const refresh = () => {
     setStatus('loading');
@@ -105,38 +126,19 @@ export default function ProjectsLog() {
     updateProjectField(project, 'tags', current.filter((t) => t !== tagName).join(','));
   };
 
-  const createTag = async () => {
-    const name = newTagName.trim();
-    if (!name) return;
-    const id = `tag-${Date.now()}`;
-    setTags((prev) => [...prev, { id, name }]);
+  const deleteProject = async (project) => {
+    if (!window.confirm(`Delete "${project.projectName}"? This removes it and its versions from the Log — it does NOT delete the Drive folder.`)) return;
+    const previous = projects;
+    setProjects((prev) => prev.filter((p) => p.id !== project.id));
     try {
-      await appsScriptPost(SANDBOX_API_URL, { action: 'createTag', payload: JSON.stringify({ id, name }) });
+      await appsScriptPost(SANDBOX_API_URL, { action: 'deleteProject', payload: JSON.stringify({ id: project.id }) });
       await verifyByPolling(async () => {
-        const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listTags' });
-        return rows.some((t) => t.id === id);
-      });
-      setNewTagName('');
-    } catch (err) {
-      setTags((prev) => prev.filter((t) => t.id !== id));
-      window.alert(`Could not create tag: ${err.message}`);
-    }
-  };
-
-  const deleteTag = async (tag) => {
-    if (!window.confirm(`Delete tag "${tag.name}"? It will be removed from every project that has it.`)) return;
-    const previousTags = tags;
-    setTags((prev) => prev.filter((t) => t.id !== tag.id));
-    setProjects((prev) => prev.map((p) => ({ ...p, tags: projectTagList(p).filter((t) => t !== tag.name).join(',') })));
-    try {
-      await appsScriptPost(SANDBOX_API_URL, { action: 'deleteTag', payload: JSON.stringify({ id: tag.id }) });
-      await verifyByPolling(async () => {
-        const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listTags' });
-        return !rows.some((t) => t.id === tag.id);
+        const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listProjects' });
+        return !rows.some((p) => p.id === project.id);
       });
     } catch (err) {
-      setTags(previousTags);
-      window.alert(`Could not delete tag: ${err.message}`);
+      setProjects(previous);
+      window.alert(`Could not delete project: ${err.message}`);
     }
   };
 
@@ -174,8 +176,8 @@ export default function ProjectsLog() {
   return (
     <div>
       {myOpenAssignments.length > 0 && (
-        <div style={{ marginBottom: 16, padding: 10, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 6 }}>
-          <h3 style={{ marginTop: 0 }}>My Open Assignments ({myOpenAssignments.length})</h3>
+        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(0, 100, 255, 0.045)', border: '1px solid rgba(0, 100, 255, 0.16)', borderRadius: 'var(--radius-control)' }}>
+          <h3 style={{ marginTop: 0, color: 'var(--primary)' }}>My Open Assignments ({myOpenAssignments.length})</h3>
           <ProjectTable
             projects={myOpenAssignments}
             tags={tags}
@@ -183,28 +185,14 @@ export default function ProjectsLog() {
             addTagToProject={addTagToProject}
             removeTagFromProject={removeTagFromProject}
             onEdit={setEditingProject}
+            onDelete={deleteProject}
           />
         </div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
         <h2>Assignment Log ({filtered.length} of {projects.length})</h2>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Manage tags:</span>
-          {tags.map((t) => (
-            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--surface-warm)', border: '1px solid var(--border)', borderRadius: 100, padding: '2px 8px', fontSize: '0.78rem' }}>
-              {t.name}
-              <button onClick={() => deleteTag(t)} title="Delete tag" style={{ padding: 0, border: 'none', background: 'none', color: 'var(--text-muted)', fontSize: '0.75rem', lineHeight: 1 }}>✕</button>
-            </span>
-          ))}
-          <input
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            placeholder="New tag"
-            style={{ width: 100, padding: '4px 8px' }}
-          />
-          <button onClick={createTag} style={{ padding: '4px 10px' }}>Add</button>
-        </div>
+        <button onClick={() => setShowNewAssignment(true)}>+ New Assignment</button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -233,6 +221,7 @@ export default function ProjectsLog() {
         addTagToProject={addTagToProject}
         removeTagFromProject={removeTagFromProject}
         onEdit={setEditingProject}
+        onDelete={deleteProject}
       />
 
       {editingProject && (
@@ -245,11 +234,19 @@ export default function ProjectsLog() {
           }}
         />
       )}
+
+      {showNewAssignment && (
+        <NewAssignmentModal
+          onClose={() => setShowNewAssignment(false)}
+          onCreated={(project) => setProjects((prev) => [...prev, project])}
+        />
+      )}
     </div>
   );
 }
 
-function ProjectTable({ projects, tags, updateProjectField, addTagToProject, removeTagFromProject, onEdit }) {
+function ProjectTable({ projects, tags, updateProjectField, addTagToProject, removeTagFromProject, onEdit, onDelete }) {
+  const tagColor = (name) => tags.find((t) => t.name === name)?.color || '#8A8271';
   return (
     <div className="table-scroll">
     <table>
@@ -257,7 +254,7 @@ function ProjectTable({ projects, tags, updateProjectField, addTagToProject, rem
         <tr>
           <th>Project</th><th>Account / Brand</th>
           <th>Lead Planner</th><th>Media Plan Status</th><th>Deal Status</th>
-          <th>Tags</th><th>Plan Due</th><th></th><th></th>
+          <th>Tags</th><th>Date Assigned</th><th>Plan Due</th><th></th><th></th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -270,12 +267,20 @@ function ProjectTable({ projects, tags, updateProjectField, addTagToProject, rem
               <td>{p.account} / {p.brand}</td>
               <td>{p.leadMediaPlannerEmail}</td>
               <td>
-                <select value={p.mediaPlanStatus || ''} onChange={(e) => updateProjectField(p, 'mediaPlanStatus', e.target.value)}>
+                <select
+                  value={p.mediaPlanStatus || ''}
+                  onChange={(e) => updateProjectField(p, 'mediaPlanStatus', e.target.value)}
+                  style={statusStyle(MEDIA_PLAN_STATUS_COLORS, p.mediaPlanStatus)}
+                >
                   {MEDIA_PLAN_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </td>
               <td>
-                <select value={p.dealStatus || ''} onChange={(e) => updateProjectField(p, 'dealStatus', e.target.value)}>
+                <select
+                  value={p.dealStatus || ''}
+                  onChange={(e) => updateProjectField(p, 'dealStatus', e.target.value)}
+                  style={statusStyle(DEAL_STATUS_COLORS, p.dealStatus)}
+                >
                   <option value="">—</option>
                   {DEAL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -283,7 +288,7 @@ function ProjectTable({ projects, tags, updateProjectField, addTagToProject, rem
               <td>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                   {projectTags.map((tagName) => (
-                    <span key={tagName} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'var(--success-bg)', color: 'var(--success)', borderRadius: 100, padding: '1px 7px', fontSize: '0.74rem', fontWeight: 600 }}>
+                    <span key={tagName} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: `${tagColor(tagName)}1a`, color: tagColor(tagName), borderRadius: 100, padding: '1px 7px', fontSize: '0.74rem', fontWeight: 600 }}>
                       {tagName}
                       <button onClick={() => removeTagFromProject(p, tagName)} title="Remove tag" style={{ padding: 0, border: 'none', background: 'none', color: 'inherit', fontSize: '0.7rem', lineHeight: 1 }}>✕</button>
                     </span>
@@ -296,9 +301,11 @@ function ProjectTable({ projects, tags, updateProjectField, addTagToProject, rem
                   )}
                 </div>
               </td>
+              <td>{formatDisplayDate(p.createdAt)}</td>
               <td>{formatDisplayDate(p.planDueDate)}</td>
               <td><button className="btn-link" onClick={() => onEdit(p)}>Details</button></td>
               <td><Link className="btn-link btn-link-primary" to={`/planner/${p.id}`}>Open Planner</Link></td>
+              <td><button className="btn-link btn-link-danger" onClick={() => onDelete(p)} title="Delete project">Delete</button></td>
             </tr>
           );
         })}
