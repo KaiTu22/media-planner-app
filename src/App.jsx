@@ -6,7 +6,10 @@ import PlansLog from './pages/log/PlansLog';
 import ProjectsLog from './pages/log/ProjectsLog';
 import PlannerFrame from './pages/PlannerFrame';
 import SandboxCheck from './pages/SandboxCheck';
+import AgencySettings from './pages/settings/AgencySettings';
+import SettingsLayout from './pages/settings/SettingsLayout';
 import TagsSettings from './pages/settings/TagsSettings';
+import TeamRosterSettings from './pages/settings/TeamRosterSettings';
 import './App.css';
 
 // Placeholder shell — Reporting becomes a real route once Deal Dashboard is
@@ -41,7 +44,7 @@ function App() {
         <nav className="shell-nav">
           <NavLink to="/log" end>Log</NavLink>
           <NavLink to="/reporting">Reporting</NavLink>
-          <NavLink to="/settings/tags">Settings</NavLink>
+          <NavLink to="/settings">Settings</NavLink>
           <NavLink to="/backend-check">Backend check</NavLink>
           <NavLink to="/sandbox-check">Sandbox check</NavLink>
         </nav>
@@ -56,7 +59,12 @@ function App() {
             <Route path="plans" element={<PlansLog />} />
           </Route>
           <Route path="/reporting" element={<Placeholder title="Reporting" />} />
-          <Route path="/settings/tags" element={<TagsSettings />} />
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="tags" replace />} />
+            <Route path="tags" element={<TagsSettings />} />
+            <Route path="agencies" element={<AgencySettings />} />
+            <Route path="pitch-team" element={<TeamRosterSettings />} />
+          </Route>
           <Route path="/planner" element={<PlannerFrame />} />
           <Route path="/planner/:projectId" element={<PlannerFrame />} />
           <Route path="/backend-check" element={<BackendCheck />} />

@@ -103,10 +103,10 @@ export default function ProjectFormFields({ form, updateField, lookups, setLooku
       </label>
       <label>
         Agency (Hold Co auto-fills)
-        <input list="agency-options" value={form.agency} onChange={updateField('agency')} />
-        <datalist id="agency-options">
-          {lookups.agencyHoldCo.map((a) => <option key={a.agency} value={a.agency} />)}
-        </datalist>
+        <select value={form.agency} onChange={updateField('agency')}>
+          <option value="">—</option>
+          {lookups.agencyHoldCo.map((a) => <option key={a.agency} value={a.agency}>{a.agency}</option>)}
+        </select>
       </label>
       <label>
         Pitch Lead (Pitch Team auto-fills)
