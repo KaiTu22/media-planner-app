@@ -36,8 +36,10 @@ function statusStyle(map, value) {
 // PROJECT records, not a separately maintained sheet. Filtering only, never
 // an access restriction: any Write-role user can see and edit any project —
 // so status is editable inline here for everyone, not just the assigned
-// planner. "My Assignments" (confirmed 2026-09-08) is a pinned shortcut to
-// find your own work quickly, not a permission boundary.
+// planner. "My Assignments" (/log/mine, confirmed 2026-09-11) is a separate
+// sibling route — same component, `mineOnly` prop — rather than a pinned
+// section on this page, consolidating what used to be two overlapping
+// "mine" mechanisms (a pinned section + a "My projects" checkbox) into one.
 //
 // Tags (confirmed 2026-09-08) replace the retired Browse page's folder
 // tree — a managed vocabulary (not free-form) for ad hoc, overlapping
@@ -52,7 +54,7 @@ function statusStyle(map, value) {
 // their own columns — which also finally gives editing access to fields
 // (links, dates, additional team members) that had no edit UI anywhere
 // before this, since Assignment only ever set them once at creation.
-export default function ProjectsLog() {
+export default function ProjectsLog({ mineOnly = false }) {
   const [whoami, setWhoami] = useState(null);
   const [projects, setProjects] = useState([]);
   const [tags, setTags] = useState([]);
@@ -62,7 +64,6 @@ export default function ProjectsLog() {
   const [showNewAssignment, setShowNewAssignment] = useState(false);
 
   const [search, setSearch] = useState('');
-  const [myProjectsOnly, setMyProjectsOnly] = useState(false);
   const [mediaPlanStatus, setMediaPlanStatus] = useState('');
   const [dealStatus, setDealStatus] = useState('');
   const [pitchTeam, setPitchTeam] = useState('');
@@ -145,15 +146,21 @@ export default function ProjectsLog() {
   const pitchTeams = useMemo(() => uniqueValues(projects, 'pitchTeam'), [projects]);
   const dealCategories = useMemo(() => uniqueValues(projects, 'dealCategory'), [projects]);
 
-  const myOpenAssignments = useMemo(() => {
-    if (!whoami) return [];
-    return projects.filter((p) => p.leadMediaPlannerEmail === whoami.email && p.mediaPlanStatus !== 'Complete');
+  // This planner's own total, used as the "(N of M)" denominator on the
+  // My Assignments tab instead of the company-wide project count.
+  const myTotal = useMemo(() => {
+    if (!whoami) return 0;
+    return projects.filter((p) => p.leadMediaPlannerEmail === whoami.email).length;
   }, [projects, whoami]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return projects.filter((p) => {
-      if (myProjectsOnly && whoami && p.leadMediaPlannerEmail !== whoami.email) return false;
+      if (mineOnly && (!whoami || p.leadMediaPlannerEmail !== whoami.email)) return false;
+      // My Assignments hides completed work by default — but if the user
+      // explicitly picked "Complete" in the status filter, honor that
+      // rather than always returning zero rows for that choice.
+      if (mineOnly && !mediaPlanStatus && p.mediaPlanStatus === 'Complete') return false;
       if (mediaPlanStatus && p.mediaPlanStatus !== mediaPlanStatus) return false;
       if (dealStatus && p.dealStatus !== dealStatus) return false;
       if (pitchTeam && p.pitchTeam !== pitchTeam) return false;
@@ -168,30 +175,15 @@ export default function ProjectsLog() {
       }
       return true;
     });
-  }, [projects, search, myProjectsOnly, whoami, mediaPlanStatus, dealStatus, pitchTeam, dealCategory, tagFilter, dueFrom, dueTo]);
+  }, [projects, search, mineOnly, whoami, mediaPlanStatus, dealStatus, pitchTeam, dealCategory, tagFilter, dueFrom, dueTo]);
 
   if (status === 'loading') return <p>Loading projects…</p>;
   if (status === 'error') return <p style={{ color: 'crimson' }}>Failed: {error}</p>;
 
   return (
     <div>
-      {myOpenAssignments.length > 0 && (
-        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(0, 100, 255, 0.045)', border: '1px solid rgba(0, 100, 255, 0.16)', borderRadius: 'var(--radius-control)' }}>
-          <h3 style={{ marginTop: 0, color: 'var(--primary)' }}>My Open Assignments ({myOpenAssignments.length})</h3>
-          <ProjectTable
-            projects={myOpenAssignments}
-            tags={tags}
-            updateProjectField={updateProjectField}
-            addTagToProject={addTagToProject}
-            removeTagFromProject={removeTagFromProject}
-            onEdit={setEditingProject}
-            onDelete={deleteProject}
-          />
-        </div>
-      )}
-
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <h2>Assignment Log ({filtered.length} of {projects.length})</h2>
+        <h2>{mineOnly ? 'My Assignments' : 'Assignment Log'} ({filtered.length} of {mineOnly ? myTotal : projects.length})</h2>
         <button onClick={() => setShowNewAssignment(true)}>+ New Assignment</button>
       </div>
 
@@ -202,9 +194,6 @@ export default function ProjectsLog() {
           placeholder="Search project/account/brand/agency/planner"
           style={{ minWidth: 240 }}
         />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
-          <input type="checkbox" checked={myProjectsOnly} onChange={(e) => setMyProjectsOnly(e.target.checked)} /> My projects
-        </label>
         <Select label="Media Plan Status" value={mediaPlanStatus} onChange={setMediaPlanStatus} options={MEDIA_PLAN_STATUSES} />
         <Select label="Deal Status" value={dealStatus} onChange={setDealStatus} options={DEAL_STATUSES} />
         <Select label="Pitch Team" value={pitchTeam} onChange={setPitchTeam} options={pitchTeams} />

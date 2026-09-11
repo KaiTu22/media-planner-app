@@ -11,6 +11,7 @@ export default function LogLayout() {
     <div>
       <nav style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <NavLink to="/log/projects" className={subNavClass}>Assignment Log</NavLink>
+        <NavLink to="/log/mine" className={subNavClass}>My Assignments</NavLink>
         <NavLink to="/log/plans" className={subNavClass}>Plans Log</NavLink>
       </nav>
       <Outlet />

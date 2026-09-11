@@ -52,6 +52,7 @@ function App() {
           <Route path="/log" element={<LogLayout />}>
             <Route index element={<Navigate to="projects" replace />} />
             <Route path="projects" element={<ProjectsLog />} />
+            <Route path="mine" element={<ProjectsLog mineOnly />} />
             <Route path="plans" element={<PlansLog />} />
           </Route>
           <Route path="/reporting" element={<Placeholder title="Reporting" />} />
