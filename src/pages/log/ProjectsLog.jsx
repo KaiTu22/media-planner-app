@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { appsScriptPost, jsonpRequest, verifyByPolling } from '../../api/appsScript';
 import { SANDBOX_API_URL } from '../../api/config';
-import NewAssignmentModal from '../../components/NewAssignmentModal';
 import ProjectDetailsModal from '../../components/ProjectDetailsModal';
 import { formatDisplayDate } from '../../components/ProjectFormFields';
 
@@ -55,13 +54,13 @@ function statusStyle(map, value) {
 // (links, dates, additional team members) that had no edit UI anywhere
 // before this, since Assignment only ever set them once at creation.
 export default function ProjectsLog({ mineOnly = false }) {
+  const { lastCreatedProject } = useOutletContext() ?? {};
   const [whoami, setWhoami] = useState(null);
   const [projects, setProjects] = useState([]);
   const [tags, setTags] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [editingProject, setEditingProject] = useState(null);
-  const [showNewAssignment, setShowNewAssignment] = useState(false);
 
   const [search, setSearch] = useState('');
   const [mediaPlanStatus, setMediaPlanStatus] = useState('');
@@ -92,6 +91,13 @@ export default function ProjectsLog({ mineOnly = false }) {
   };
 
   useEffect(refresh, []);
+
+  // "+ New Assignment" lives in LogLayout now (shared across all Log tabs) —
+  // pick up whatever it just created and append it locally, same as the
+  // NewAssignmentModal's onCreated used to do directly.
+  useEffect(() => {
+    if (lastCreatedProject) setProjects((prev) => [...prev, lastCreatedProject]);
+  }, [lastCreatedProject]);
 
   // Optimistic, targeted updates only — never replace the whole `projects`
   // array from a follow-up fetch inside the verify step. An earlier version
@@ -182,10 +188,7 @@ export default function ProjectsLog({ mineOnly = false }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
-        <h2>{mineOnly ? 'My Assignments' : 'Assignment Log'} ({filtered.length} of {mineOnly ? myTotal : projects.length})</h2>
-        <button onClick={() => setShowNewAssignment(true)}>+ New Assignment</button>
-      </div>
+      <h2>{mineOnly ? 'My Assignments' : 'Assignment Log'} ({filtered.length} of {mineOnly ? myTotal : projects.length})</h2>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
         <input
@@ -221,13 +224,6 @@ export default function ProjectsLog({ mineOnly = false }) {
             setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
             setEditingProject(null);
           }}
-        />
-      )}
-
-      {showNewAssignment && (
-        <NewAssignmentModal
-          onClose={() => setShowNewAssignment(false)}
-          onCreated={(project) => setProjects((prev) => [...prev, project])}
         />
       )}
     </div>
