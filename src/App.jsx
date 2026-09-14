@@ -7,6 +7,7 @@ import ProjectsLog from './pages/log/ProjectsLog';
 import PlannerFrame from './pages/PlannerFrame';
 import SandboxCheck from './pages/SandboxCheck';
 import AgencySettings from './pages/settings/AgencySettings';
+import PlannerSettings from './pages/settings/PlannerSettings';
 import SettingsLayout from './pages/settings/SettingsLayout';
 import TagsSettings from './pages/settings/TagsSettings';
 import TeamRosterSettings from './pages/settings/TeamRosterSettings';
@@ -64,6 +65,7 @@ function App() {
             <Route path="tags" element={<TagsSettings />} />
             <Route path="agencies" element={<AgencySettings />} />
             <Route path="pitch-team" element={<TeamRosterSettings />} />
+            <Route path="planners" element={<PlannerSettings />} />
           </Route>
           <Route path="/planner" element={<PlannerFrame />} />
           <Route path="/planner/:projectId" element={<PlannerFrame />} />
