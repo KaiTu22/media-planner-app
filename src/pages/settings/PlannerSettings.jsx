@@ -3,11 +3,12 @@ import { appsScriptPost, jsonpRequest, verifyByPolling } from '../../api/appsScr
 import { SANDBOX_API_URL } from '../../api/config';
 
 // Lead Media Planners settings (confirmed 2026-09-14) — Users had no write
-// actions at all before this; the Sheet had to be hand-edited. Scope is
-// deliberately name/email only — role (Write/Read) stays out of this page,
-// still a separate admin-only action via the raw Sheet, since it's the
-// project's real access-control gate (§ access model), not something to
-// expose in a first pass here.
+// actions at all before this; the Sheet had to be hand-edited. Role
+// (Write/Read) is now editable here too, added the same day once testers
+// started needing Write access without someone hand-editing the Sheet —
+// still a deliberate, explicit action per row (a plain select, not a
+// bulk/self-service toggle), matching the access model's intent that
+// granting Write stays a conscious admin decision.
 export default function PlannerSettings() {
   const [users, setUsers] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -50,7 +51,12 @@ export default function PlannerSettings() {
     try {
       await appsScriptPost(SANDBOX_API_URL, {
         action: 'updateUser',
-        payload: JSON.stringify({ originalEmail, email: field === 'email' ? value : row.email, name: field === 'name' ? value : row.name }),
+        payload: JSON.stringify({
+          originalEmail,
+          email: field === 'email' ? value : row.email,
+          name: field === 'name' ? value : row.name,
+          role: field === 'role' ? value : row.role,
+        }),
       });
       await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listUsers' });
@@ -86,13 +92,13 @@ export default function PlannerSettings() {
     <div>
       <h2>Lead Media Planners</h2>
       <p style={{ color: 'var(--text-muted)', maxWidth: 560 }}>
-        Backs the Assignment form's Lead Media Planner dropdown and the notify-list. Write/Read access isn't managed here — that stays a deliberate admin action.
+        Backs the Assignment form's Lead Media Planner dropdown and the notify-list. Role controls whether someone can edit anything or just view — grant Write deliberately, one person at a time.
       </p>
 
       <div className="table-scroll" style={{ maxWidth: 560, marginTop: 16 }}>
         <table>
           <thead>
-            <tr><th>Name</th><th>Email</th><th></th></tr>
+            <tr><th>Name</th><th>Email</th><th>Role</th><th></th></tr>
           </thead>
           <tbody>
             {users.map((u) => (
@@ -111,11 +117,17 @@ export default function PlannerSettings() {
                     style={{ width: 220 }}
                   />
                 </td>
+                <td>
+                  <select value={u.role || 'read'} onChange={(e) => updateUser(u, 'role', e.target.value)}>
+                    <option value="read">Read</option>
+                    <option value="write">Write</option>
+                  </select>
+                </td>
                 <td><button className="btn-link" onClick={() => deleteUser(u)}>Delete</button></td>
               </tr>
             ))}
             {users.length === 0 && (
-              <tr><td colSpan={3} style={{ color: 'var(--text-muted)' }}>No planners yet.</td></tr>
+              <tr><td colSpan={4} style={{ color: 'var(--text-muted)' }}>No planners yet.</td></tr>
             )}
           </tbody>
         </table>
