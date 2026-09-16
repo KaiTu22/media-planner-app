@@ -11,6 +11,7 @@ import PlannerSettings from './pages/settings/PlannerSettings';
 import SettingsLayout from './pages/settings/SettingsLayout';
 import TagsSettings from './pages/settings/TagsSettings';
 import TeamRosterSettings from './pages/settings/TeamRosterSettings';
+import TentpoleShowSettings from './pages/settings/TentpoleShowSettings';
 import './App.css';
 
 // Placeholder shell — Reporting becomes a real route once Deal Dashboard is
@@ -66,6 +67,7 @@ function App() {
             <Route path="agencies" element={<AgencySettings />} />
             <Route path="pitch-team" element={<TeamRosterSettings />} />
             <Route path="planners" element={<PlannerSettings />} />
+            <Route path="tentpole-shows" element={<TentpoleShowSettings />} />
           </Route>
           <Route path="/planner" element={<PlannerFrame />} />
           <Route path="/planner/:projectId" element={<PlannerFrame />} />
