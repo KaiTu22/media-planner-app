@@ -5,6 +5,7 @@ import LogLayout from './pages/log/LogLayout';
 import PlansLog from './pages/log/PlansLog';
 import ProjectsLog from './pages/log/ProjectsLog';
 import PlannerFrame from './pages/PlannerFrame';
+import Reporting from './pages/Reporting';
 import SandboxCheck from './pages/SandboxCheck';
 import AgencySettings from './pages/settings/AgencySettings';
 import PlannerSettings from './pages/settings/PlannerSettings';
@@ -13,12 +14,6 @@ import TagsSettings from './pages/settings/TagsSettings';
 import TeamRosterSettings from './pages/settings/TeamRosterSettings';
 import TentpoleShowSettings from './pages/settings/TentpoleShowSettings';
 import './App.css';
-
-// Placeholder shell — Reporting becomes a real route once Deal Dashboard is
-// ported in (§6.4).
-function Placeholder({ title }) {
-  return <p>{title} — not built yet.</p>;
-}
 
 function App() {
   const navigate = useNavigate();
@@ -60,7 +55,7 @@ function App() {
             <Route path="mine" element={<ProjectsLog mineOnly />} />
             <Route path="plans" element={<PlansLog />} />
           </Route>
-          <Route path="/reporting" element={<Placeholder title="Reporting" />} />
+          <Route path="/reporting" element={<Reporting />} />
           <Route path="/settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="tags" replace />} />
             <Route path="tags" element={<TagsSettings />} />
