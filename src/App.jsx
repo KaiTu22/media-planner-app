@@ -9,6 +9,7 @@ import Reporting from './pages/Reporting';
 import SandboxCheck from './pages/SandboxCheck';
 import SponsorshipHubFrame from './pages/SponsorshipHubFrame';
 import AgencySettings from './pages/settings/AgencySettings';
+import PlacementMenuSettings from './pages/settings/PlacementMenuSettings';
 import PlannerSettings from './pages/settings/PlannerSettings';
 import SettingsLayout from './pages/settings/SettingsLayout';
 import TagsSettings from './pages/settings/TagsSettings';
@@ -65,6 +66,7 @@ function App() {
             <Route path="pitch-team" element={<TeamRosterSettings />} />
             <Route path="planners" element={<PlannerSettings />} />
             <Route path="tentpole-shows" element={<TentpoleShowSettings />} />
+            <Route path="placement-menu" element={<PlacementMenuSettings />} />
           </Route>
           <Route path="/planner" element={<PlannerFrame />} />
           <Route path="/planner/:projectId" element={<PlannerFrame />} />
