@@ -70,7 +70,7 @@ export default function PlacementMenuSettings() {
 
   const createCategory = async () => {
     const name = newCategoryName.trim();
-    if (!name) return;
+    if (!name) { window.alert('Enter a category name first.'); return; }
     const id = `placement-category-${Date.now()}`;
     const placementType = newCategoryType;
     setCategories((prev) => [...prev, { id, name, placementType }]);
@@ -142,7 +142,7 @@ export default function PlacementMenuSettings() {
 
   const createItem = async (categoryId) => {
     const name = (newItemDrafts[categoryId] || '').trim();
-    if (!name) return;
+    if (!name) { window.alert('Enter a placement name first.'); return; }
     const id = `placement-item-${Date.now()}`;
     const lines = [emptyLine()];
     setItems((prev) => [...prev, { id, categoryId, name, lines }]);
