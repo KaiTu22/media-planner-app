@@ -18,6 +18,7 @@ export const emptyProjectForm = {
   rushRequest: false,
   dealCategory: 'scatter',
   tentpoleShowId: '',
+  seasonYearId: '',
   planRequestDate: '',
   planDueDate: '',
   campaignStartDate: '',
@@ -42,7 +43,8 @@ export function loadProjectLookups() {
     jsonpRequest(SANDBOX_API_URL, { action: 'listTeamRoster' }),
     jsonpRequest(SANDBOX_API_URL, { action: 'listAgencyHoldCo' }),
     jsonpRequest(SANDBOX_API_URL, { action: 'listTentpoleShows' }),
-  ]).then(([users, teamRoster, agencyHoldCo, tentpoleShows]) => ({ users, teamRoster, agencyHoldCo, tentpoleShows }));
+    jsonpRequest(SANDBOX_API_URL, { action: 'listSeasonYears' }),
+  ]).then(([users, teamRoster, agencyHoldCo, tentpoleShows, seasonYears]) => ({ users, teamRoster, agencyHoldCo, tentpoleShows, seasonYears }));
 }
 
 // A date value coming back from the backend can be a full ISO timestamp
@@ -56,7 +58,7 @@ export function toDateInputValue(value) {
 // Shared between Assignment's create form and the Log's edit-details modal
 // (confirmed 2026-09-09) — same field set, same lookup-derivation behavior
 // (pitchTeam/holdCo auto-fill server-side), so the two can't drift apart.
-export default function ProjectFormFields({ form, updateField, lookups, setLookups, newShowName, setNewShowName }) {
+export default function ProjectFormFields({ form, updateField, lookups, setLookups, newShowName, setNewShowName, newSeasonYearName, setNewSeasonYearName }) {
   const toggleNotifyEmail = (email) => (e) => {
     updateField('notifyEmails')({
       target: {
@@ -79,12 +81,39 @@ export default function ProjectFormFields({ form, updateField, lookups, setLooku
       const shows = await jsonpRequest(SANDBOX_API_URL, { action: 'listTentpoleShows' });
       if (shows.find((s) => s.id === id)) {
         setLookups((l) => ({ ...l, tentpoleShows: shows }));
-        updateField('tentpoleShowId')({ target: { type: 'checkbox-list', value: id } });
+        selectTentpoleShow(id);
         return true;
       }
       return false;
     });
     setNewShowName('');
+  };
+
+  // A season/year only means something under a specific show, so switching
+  // shows clears whatever season/year was picked for the previous one
+  // rather than silently keeping a value that no longer belongs to it.
+  const selectTentpoleShow = (id) => {
+    updateField('tentpoleShowId')({ target: { type: 'checkbox-list', value: id } });
+    updateField('seasonYearId')({ target: { type: 'checkbox-list', value: '' } });
+  };
+
+  const addSeasonYear = async () => {
+    if (!newSeasonYearName.trim() || !form.tentpoleShowId) return;
+    const id = `season-year-${Date.now()}`;
+    await appsScriptPost(SANDBOX_API_URL, {
+      action: 'createSeasonYear',
+      payload: JSON.stringify({ id, showId: form.tentpoleShowId, name: newSeasonYearName }),
+    });
+    await verifyByPolling(async () => {
+      const seasonYears = await jsonpRequest(SANDBOX_API_URL, { action: 'listSeasonYears' });
+      if (seasonYears.find((s) => s.id === id)) {
+        setLookups((l) => ({ ...l, seasonYears }));
+        updateField('seasonYearId')({ target: { type: 'checkbox-list', value: id } });
+        return true;
+      }
+      return false;
+    });
+    setNewSeasonYearName('');
   };
 
   return (
@@ -160,13 +189,27 @@ export default function ProjectFormFields({ form, updateField, lookups, setLooku
       {form.dealCategory === 'tentpole' && (
         <label>
           Tentpole Show
-          <select value={form.tentpoleShowId} onChange={updateField('tentpoleShowId')}>
+          <select value={form.tentpoleShowId} onChange={(e) => selectTentpoleShow(e.target.value)}>
             <option value="">—</option>
             {lookups.tentpoleShows.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
             <input value={newShowName} onChange={(e) => setNewShowName(e.target.value)} placeholder="Add new show" />
             <button type="button" onClick={addTentpoleShow}>Add</button>
+          </div>
+        </label>
+      )}
+
+      {form.dealCategory === 'tentpole' && form.tentpoleShowId && (
+        <label>
+          Season / Year
+          <select value={form.seasonYearId} onChange={updateField('seasonYearId')}>
+            <option value="">—</option>
+            {lookups.seasonYears.filter((s) => s.showId === form.tentpoleShowId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+            <input value={newSeasonYearName} onChange={(e) => setNewSeasonYearName(e.target.value)} placeholder="e.g. Season 51, or 2027" />
+            <button type="button" onClick={addSeasonYear}>Add</button>
           </div>
         </label>
       )}

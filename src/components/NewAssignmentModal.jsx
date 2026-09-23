@@ -14,6 +14,7 @@ export default function NewAssignmentModal({ onClose, onCreated }) {
   const [lookupError, setLookupError] = useState(null);
   const [form, setForm] = useState(emptyProjectForm);
   const [newShowName, setNewShowName] = useState('');
+  const [newSeasonYearName, setNewSeasonYearName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [created, setCreated] = useState(null);
@@ -77,6 +78,8 @@ export default function NewAssignmentModal({ onClose, onCreated }) {
               setLookups={setLookups}
               newShowName={newShowName}
               setNewShowName={setNewShowName}
+              newSeasonYearName={newSeasonYearName}
+              setNewSeasonYearName={setNewSeasonYearName}
             />
             {error && <p style={{ color: 'crimson' }}>Failed: {error}</p>}
             <div style={{ display: 'flex', gap: 8 }}>

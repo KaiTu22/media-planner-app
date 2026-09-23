@@ -20,6 +20,7 @@ export default function ProjectDetailsModal({ project, onClose, onSaved }) {
   const [lookupError, setLookupError] = useState(null);
   const [form, setForm] = useState(null);
   const [newShowName, setNewShowName] = useState('');
+  const [newSeasonYearName, setNewSeasonYearName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -78,6 +79,7 @@ export default function ProjectDetailsModal({ project, onClose, onSaved }) {
     return u ? (u.name || u.email) : email;
   };
   const showName = (id) => lookups?.tentpoleShows.find((s) => s.id === id)?.name || id;
+  const seasonYearName = (id) => lookups?.seasonYears.find((s) => s.id === id)?.name || id;
 
   return (
     <div className="modal-overlay">
@@ -105,6 +107,7 @@ export default function ProjectDetailsModal({ project, onClose, onSaved }) {
             <ViewRow label="Rush Request" value={project.rushRequest ? 'Yes' : 'No'} />
             <ViewRow label="Deal Category" value={project.dealCategory} />
             {project.dealCategory === 'tentpole' && <ViewRow label="Tentpole Show" value={project.tentpoleShowId && showName(project.tentpoleShowId)} />}
+            {project.dealCategory === 'tentpole' && <ViewRow label="Season / Year" value={project.seasonYearId && seasonYearName(project.seasonYearId)} />}
             <ViewRow label="Plan Request Date" value={formatDisplayDate(project.planRequestDate)} />
             <ViewRow label="Plan Due Date" value={formatDisplayDate(project.planDueDate)} />
             <ViewRow label="Campaign Start" value={formatDisplayDate(project.campaignStartDate)} />
@@ -131,6 +134,8 @@ export default function ProjectDetailsModal({ project, onClose, onSaved }) {
               setLookups={setLookups}
               newShowName={newShowName}
               setNewShowName={setNewShowName}
+              newSeasonYearName={newSeasonYearName}
+              setNewSeasonYearName={setNewSeasonYearName}
             />
             {error && <p style={{ color: 'crimson' }}>Failed: {error}</p>}
             <div style={{ display: 'flex', gap: 8 }}>
@@ -160,6 +165,7 @@ function projectToForm(project) {
     rushRequest: !!project.rushRequest,
     dealCategory: project.dealCategory || 'scatter',
     tentpoleShowId: project.tentpoleShowId || '',
+    seasonYearId: project.seasonYearId || '',
     planRequestDate: toDateInputValue(project.planRequestDate),
     planDueDate: toDateInputValue(project.planDueDate),
     campaignStartDate: toDateInputValue(project.campaignStartDate),
