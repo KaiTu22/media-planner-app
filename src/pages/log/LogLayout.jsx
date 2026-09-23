@@ -21,8 +21,8 @@ export default function LogLayout() {
   return (
     <div>
       <nav style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-        <NavLink to="/log/projects" className={subNavClass}>Assignment Log</NavLink>
         <NavLink to="/log/mine" className={subNavClass}>My Assignments</NavLink>
+        <NavLink to="/log/projects" className={subNavClass}>Assignment Log</NavLink>
         <NavLink to="/log/plans" className={subNavClass}>Plans Log</NavLink>
         <button
           onClick={() => setShowNewAssignment(true)}
