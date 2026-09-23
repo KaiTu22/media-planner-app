@@ -1382,12 +1382,11 @@ function FlatTable({ deals }) {
           gridTemplateColumns: "22px 1.6fr 165px 165px 165px 110px",
           gap: 10,
           padding: "10px 14px",
-          background: TEAL,
-          color: "#F1F0EA",
+          background: "#000A3C",
+          color: "#FFFFFF",
           fontSize: 11,
           fontWeight: 650,
           textTransform: "uppercase",
-          letterSpacing: "0.03em",
         }}
       >
         <div />
@@ -1691,7 +1690,7 @@ export default function ExecSummaryDashboard() {
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap');
         .row:hover { background: #F0EEE6 !important; }
         .row:focus-visible { outline: 2px solid ${TEAL}; outline-offset: -2px; }
         button.ctrl:focus-visible { outline: 2px solid ${TEAL}; outline-offset: 2px; }
@@ -1702,7 +1701,6 @@ export default function ExecSummaryDashboard() {
         <div style={{ marginBottom: 22 }}>
           <div
             style={{
-              fontFamily: "'Source Serif 4', Georgia, serif",
               fontSize: 25,
               fontWeight: 600,
               letterSpacing: "-0.01em",

@@ -31,6 +31,28 @@ function statusStyle(map, value) {
   return c ? { background: c.bg, color: c.fg, fontWeight: 600 } : undefined;
 }
 
+// Local (not UTC) YYYY-MM-DD, to match what <input type="date"> already
+// produces for planDueDate — comparing against a UTC "today" would flag
+// things a day early/late for anyone west of UTC.
+function todayDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Completed work isn't "overdue" in any actionable sense, so the flag is
+// suppressed once a plan is done rather than showing a stale red badge.
+function dueFlag(project) {
+  if (!project.planDueDate || project.mediaPlanStatus === 'Complete') return null;
+  const today = todayDateString();
+  if (project.planDueDate < today) return 'overdue';
+  if (project.planDueDate === today) return 'due-today';
+  return null;
+}
+const DUE_FLAG_STYLE = {
+  overdue: { bg: '#FAE1E6', fg: '#C24463', label: 'Overdue' },
+  'due-today': { bg: '#FDF3D8', fg: '#8A6D1B', label: 'Due Today' },
+};
+
 // §6.3 Assignment Log (/log/projects) — a derived, read-only view over
 // PROJECT records, not a separately maintained sheet. Filtering only, never
 // an access restriction: any Write-role user can see and edit any project —
@@ -183,6 +205,16 @@ export default function ProjectsLog({ mineOnly = false }) {
     });
   }, [projects, search, mineOnly, whoami, mediaPlanStatus, dealStatus, pitchTeam, dealCategory, tagFilter, dueFrom, dueTo]);
 
+  // My Assignments prioritizes by what's due soonest; the full Assignment
+  // Log keeps its existing (unsorted, backend-order) view since it's a
+  // browse/manage surface, not a "what do I do next" one. Projects with no
+  // due date sort last rather than first (an empty string would otherwise
+  // sort before real dates).
+  const sorted = useMemo(() => {
+    if (!mineOnly) return filtered;
+    return [...filtered].sort((a, b) => (a.planDueDate || '9999-99-99').localeCompare(b.planDueDate || '9999-99-99'));
+  }, [filtered, mineOnly]);
+
   if (status === 'loading') return <p>Loading projects…</p>;
   if (status === 'error') return <p style={{ color: 'crimson' }}>Failed: {error}</p>;
 
@@ -207,7 +239,7 @@ export default function ProjectsLog({ mineOnly = false }) {
       </div>
 
       <ProjectTable
-        projects={filtered}
+        projects={sorted}
         tags={tags}
         updateProjectField={updateProjectField}
         addTagToProject={addTagToProject}
@@ -287,7 +319,16 @@ function ProjectTable({ projects, tags, updateProjectField, addTagToProject, rem
                 </div>
               </td>
               <td>{formatDisplayDate(p.createdAt)}</td>
-              <td>{formatDisplayDate(p.planDueDate)}</td>
+              <td>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {formatDisplayDate(p.planDueDate)}
+                  {dueFlag(p) && (
+                    <span style={{ background: DUE_FLAG_STYLE[dueFlag(p)].bg, color: DUE_FLAG_STYLE[dueFlag(p)].fg, borderRadius: 100, padding: '1px 7px', fontSize: '0.7rem', fontWeight: 600 }}>
+                      {DUE_FLAG_STYLE[dueFlag(p)].label}
+                    </span>
+                  )}
+                </div>
+              </td>
               <td><button className="btn-link" onClick={() => onEdit(p)}>Details</button></td>
               <td><Link className="btn-link btn-link-primary" to={`/planner/${p.id}`}>Open Planner</Link></td>
               <td><button className="btn-link btn-link-danger" onClick={() => onDelete(p)} title="Delete project">Delete</button></td>

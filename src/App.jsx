@@ -50,7 +50,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/log" replace />} />
           <Route path="/log" element={<LogLayout />}>
-            <Route index element={<Navigate to="projects" replace />} />
+            <Route index element={<Navigate to="mine" replace />} />
             <Route path="projects" element={<ProjectsLog />} />
             <Route path="mine" element={<ProjectsLog mineOnly />} />
             <Route path="plans" element={<PlansLog />} />
