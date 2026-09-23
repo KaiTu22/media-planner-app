@@ -80,9 +80,9 @@ export default function TentpoleShowSettings() {
 
   return (
     <div>
-      <h2>Tentpole Shows</h2>
+      <h2>Shows / Franchises</h2>
       <p style={{ color: 'var(--text-muted)', maxWidth: 560 }}>
-        Sub-categories for the "Show / Tentpole" Deal Category — backs the Assignment form's Tentpole Show dropdown, so specific events can be tracked and reported on individually.
+        Backs the Assignment form's Tentpole Show dropdown (for the "Show / Tentpole" Deal Category) and the Sponsorship Hub's show/franchise selector — one shared list either way, so a show only needs to be added once.
       </p>
 
       <div className="table-scroll" style={{ maxWidth: 560, marginTop: 16 }}>

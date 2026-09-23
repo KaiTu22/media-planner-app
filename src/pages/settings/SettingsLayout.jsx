@@ -15,7 +15,8 @@ export default function SettingsLayout() {
         <NavLink to="/settings/agencies" className={subNavClass}>Agency / Hold Co</NavLink>
         <NavLink to="/settings/pitch-team" className={subNavClass}>Pitch Lead / Pitch Team</NavLink>
         <NavLink to="/settings/planners" className={subNavClass}>Lead Media Planners</NavLink>
-        <NavLink to="/settings/tentpole-shows" className={subNavClass}>Tentpole Shows</NavLink>
+        <NavLink to="/settings/tentpole-shows" className={subNavClass}>Shows / Franchises</NavLink>
+        <NavLink to="/settings/season-years" className={subNavClass}>Season / Year</NavLink>
       </nav>
       <Outlet />
     </div>
