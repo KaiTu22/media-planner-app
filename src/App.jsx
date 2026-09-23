@@ -7,6 +7,7 @@ import ProjectsLog from './pages/log/ProjectsLog';
 import PlannerFrame from './pages/PlannerFrame';
 import Reporting from './pages/Reporting';
 import SandboxCheck from './pages/SandboxCheck';
+import SponsorshipHubFrame from './pages/SponsorshipHubFrame';
 import AgencySettings from './pages/settings/AgencySettings';
 import PlannerSettings from './pages/settings/PlannerSettings';
 import SettingsLayout from './pages/settings/SettingsLayout';
@@ -41,6 +42,7 @@ function App() {
         <nav className="shell-nav">
           <NavLink to="/log" end>Log</NavLink>
           <NavLink to="/reporting">Reporting</NavLink>
+          <NavLink to="/sponsorship-hub">Sponsorship Hub</NavLink>
           <NavLink to="/settings">Settings</NavLink>
           <NavLink to="/backend-check">Backend check</NavLink>
           <NavLink to="/sandbox-check">Sandbox check</NavLink>
@@ -66,6 +68,7 @@ function App() {
           </Route>
           <Route path="/planner" element={<PlannerFrame />} />
           <Route path="/planner/:projectId" element={<PlannerFrame />} />
+          <Route path="/sponsorship-hub" element={<SponsorshipHubFrame />} />
           <Route path="/backend-check" element={<BackendCheck />} />
           <Route path="/sandbox-check" element={<SandboxCheck />} />
         </Routes>
