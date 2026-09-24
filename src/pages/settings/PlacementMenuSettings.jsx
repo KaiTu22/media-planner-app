@@ -217,7 +217,19 @@ export default function PlacementMenuSettings() {
     const lines = item.lines.map((l, i) => (i === idx ? { ...l, [field]: value } : l));
     saveItemPatch(item, { lines });
   };
-  const updateItemRateMode = (item, rateMode) => saveItemPatch(item, { rateMode });
+  // Persists the displayed defaults alongside rateMode itself — the Cost
+  // Method select below shows item.sharedCostMethod || 'CPM' so it never
+  // renders blank, but that fallback is display-only. Without writing the
+  // real value here too, an item that's never had its shared fields
+  // explicitly touched looks like "CPM" in Settings while actually saving
+  // as blank to the backend — exactly what got copied into a package that
+  // added this bundle before this fix.
+  const updateItemRateMode = (item, rateMode) =>
+    saveItemPatch(item, {
+      rateMode,
+      sharedCostMethod: item.sharedCostMethod || 'CPM',
+      sharedRate: item.sharedRate || '',
+    });
   const updateItemSharedCostMethod = (item, sharedCostMethod) => saveItemPatch(item, { sharedCostMethod });
   const updateItemSharedRate = (item, sharedRate) => saveItemPatch(item, { sharedRate });
 
