@@ -29,6 +29,17 @@ const placementTypeLabel = (value) => PLACEMENT_TYPES.find((t) => t.value === va
 
 const emptyLine = () => ({ platform: '', description: '', size: '', costMethod: 'CPM', defaultRate: '' });
 
+// Two real bundle shapes from the reference template (confirmed 2026-09-24):
+// 'perLine' — each line carries its own rate, some intentionally blank
+// ("bundled, no charge"), e.g. Billboard $36.50 + Pre-Roll (no charge) +
+// Midroll $32.00. 'shared' — every line in the bundle is priced at one
+// common rate, rather than forcing each line to either have its own rate
+// or show as $0.
+const RATE_MODES = [
+  { value: 'perLine', label: 'Separate CPMs per line' },
+  { value: 'shared', label: 'Shared CPM for all lines' },
+];
+
 export default function PlacementMenuSettings() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
@@ -145,9 +156,12 @@ export default function PlacementMenuSettings() {
     if (!name) { window.alert('Enter a placement name first.'); return; }
     const id = `placement-item-${Date.now()}`;
     const lines = [emptyLine()];
-    setItems((prev) => [...prev, { id, categoryId, name, lines }]);
+    const rateMode = 'perLine';
+    const sharedCostMethod = 'CPM';
+    const sharedRate = '';
+    setItems((prev) => [...prev, { id, categoryId, name, rateMode, sharedCostMethod, sharedRate, lines }]);
     try {
-      await appsScriptPost(SANDBOX_API_URL, { action: 'createPlacementMenuItem', payload: JSON.stringify({ id, categoryId, name, lines }) });
+      await appsScriptPost(SANDBOX_API_URL, { action: 'createPlacementMenuItem', payload: JSON.stringify({ id, categoryId, name, rateMode, sharedCostMethod, sharedRate, lines }) });
       await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listPlacementMenuItems' });
         return rows.some((i) => i.id === id);
@@ -182,27 +196,30 @@ export default function PlacementMenuSettings() {
     }
   };
 
-  // Line edits are saved as one full replace of the item's `lines` array —
-  // simpler and safer than trying to patch a single array index server-side
-  // through the generic updateRecord_ helper, which only knows how to set
-  // whole field values.
-  const saveItemLines = async (item, lines) => {
+  // Field edits (lines, rateMode, sharedCostMethod, sharedRate) are all
+  // saved as a full-field replace — simpler and safer than trying to patch
+  // a single array index server-side through the generic updateRecord_
+  // helper, which only knows how to set whole field values.
+  const saveItemPatch = async (item, patch) => {
     const previous = items;
-    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, lines } : i)));
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...patch } : i)));
     try {
-      await appsScriptPost(SANDBOX_API_URL, { action: 'updatePlacementMenuItem', payload: JSON.stringify({ id: item.id, lines }) });
+      await appsScriptPost(SANDBOX_API_URL, { action: 'updatePlacementMenuItem', payload: JSON.stringify({ id: item.id, ...patch }) });
     } catch (err) {
       setItems(previous);
-      window.alert(`Could not save placement lines: ${err.message}`);
+      window.alert(`Could not save placement: ${err.message}`);
     }
   };
 
-  const addLine = (item) => saveItemLines(item, [...item.lines, emptyLine()]);
-  const removeLine = (item, idx) => saveItemLines(item, item.lines.filter((_, i) => i !== idx));
+  const addLine = (item) => saveItemPatch(item, { lines: [...item.lines, emptyLine()] });
+  const removeLine = (item, idx) => saveItemPatch(item, { lines: item.lines.filter((_, i) => i !== idx) });
   const updateLine = (item, idx, field, value) => {
     const lines = item.lines.map((l, i) => (i === idx ? { ...l, [field]: value } : l));
-    saveItemLines(item, lines);
+    saveItemPatch(item, { lines });
   };
+  const updateItemRateMode = (item, rateMode) => saveItemPatch(item, { rateMode });
+  const updateItemSharedCostMethod = (item, sharedCostMethod) => saveItemPatch(item, { sharedCostMethod });
+  const updateItemSharedRate = (item, sharedRate) => saveItemPatch(item, { sharedRate });
 
   if (status === 'loading') return <p>Loading placement menu…</p>;
   if (status === 'error') return <p style={{ color: 'crimson' }}>Failed: {error}</p>;
@@ -248,10 +265,46 @@ export default function PlacementMenuSettings() {
                 <button className="btn-link" onClick={() => deleteItem(item)} style={{ marginLeft: 'auto' }}>Delete</button>
               </div>
 
+              {item.lines.length > 1 && (
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                  {RATE_MODES.map((m) => (
+                    <label key={m.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 400, fontSize: '0.85rem', marginBottom: 0 }}>
+                      <input
+                        type="radio"
+                        name={`rateMode-${item.id}`}
+                        checked={(item.rateMode || 'perLine') === m.value}
+                        onChange={() => updateItemRateMode(item, m.value)}
+                      />
+                      {m.label}
+                    </label>
+                  ))}
+                  {item.rateMode === 'shared' && (
+                    <>
+                      <select value={item.sharedCostMethod || 'CPM'} onChange={(e) => updateItemSharedCostMethod(item, e.target.value)}>
+                        <option value="CPM">CPM</option>
+                        <option value="Flat Fee">Flat Fee</option>
+                        <option value="AV">Added Value</option>
+                      </select>
+                      <input
+                        type="number"
+                        value={item.sharedRate || ''}
+                        onChange={(e) => updateItemSharedRate(item, e.target.value)}
+                        placeholder="Shared rate"
+                        style={{ width: 100 }}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="table-scroll">
                 <table>
                   <thead>
-                    <tr><th>Platform</th><th>Description</th><th>Size</th><th>Cost Method</th><th>Default Rate</th><th></th></tr>
+                    <tr>
+                      <th>Platform</th><th>Description</th><th>Size</th>
+                      {item.rateMode !== 'shared' && <><th>Cost Method</th><th>Default Rate</th></>}
+                      <th></th>
+                    </tr>
                   </thead>
                   <tbody>
                     {item.lines.map((line, idx) => (
@@ -259,15 +312,19 @@ export default function PlacementMenuSettings() {
                         <td><input value={line.platform} onChange={(e) => updateLine(item, idx, 'platform', e.target.value)} style={{ width: 110 }} /></td>
                         <td><input value={line.description} onChange={(e) => updateLine(item, idx, 'description', e.target.value)} style={{ width: 200 }} /></td>
                         <td><input value={line.size} onChange={(e) => updateLine(item, idx, 'size', e.target.value)} style={{ width: 80 }} /></td>
-                        <td>
-                          <select value={line.costMethod} onChange={(e) => updateLine(item, idx, 'costMethod', e.target.value)}>
-                            <option value="CPM">CPM</option>
-                            <option value="Flat Fee">Flat Fee</option>
-                            <option value="AV">Added Value</option>
-                            <option value="">— (bundled, no charge)</option>
-                          </select>
-                        </td>
-                        <td><input type="number" value={line.defaultRate} onChange={(e) => updateLine(item, idx, 'defaultRate', e.target.value)} style={{ width: 90 }} /></td>
+                        {item.rateMode !== 'shared' && (
+                          <>
+                            <td>
+                              <select value={line.costMethod} onChange={(e) => updateLine(item, idx, 'costMethod', e.target.value)}>
+                                <option value="CPM">CPM</option>
+                                <option value="Flat Fee">Flat Fee</option>
+                                <option value="AV">Added Value</option>
+                                <option value="">— (bundled, no charge)</option>
+                              </select>
+                            </td>
+                            <td><input type="number" value={line.defaultRate} onChange={(e) => updateLine(item, idx, 'defaultRate', e.target.value)} style={{ width: 90 }} /></td>
+                          </>
+                        )}
                         <td><button className="btn-link btn-link-danger" onClick={() => removeLine(item, idx)} disabled={item.lines.length <= 1}>✕</button></td>
                       </tr>
                     ))}
