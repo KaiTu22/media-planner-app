@@ -40,14 +40,70 @@ const RATE_MODES = [
   { value: 'shared', label: 'Shared CPM for all lines' },
 ];
 
+const badgeStyle = {
+  fontSize: '0.72rem',
+  color: 'var(--text-muted)',
+  background: 'var(--background)',
+  border: '1px solid var(--border)',
+  borderRadius: 999,
+  padding: '2px 8px',
+  whiteSpace: 'nowrap',
+};
+
+const modalOverlayStyle = {
+  position: 'fixed',
+  top: 0, left: 0, right: 0, bottom: 0,
+  background: 'rgba(0,0,0,0.45)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1000,
+};
+
+const modalCardStyle = {
+  background: 'var(--surface)',
+  borderRadius: 'var(--radius-control)',
+  padding: 20,
+  width: '90%',
+  maxWidth: 420,
+  boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+};
+
+function Modal({ title, onCancel, onSubmit, submitLabel, children }) {
+  return (
+    <div style={modalOverlayStyle} onClick={onCancel}>
+      <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ marginTop: 0, marginBottom: 14 }}>{title}</h3>
+        {children}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+          <button className="btn-secondary" onClick={onCancel}>Cancel</button>
+          <button onClick={onSubmit}>{submitLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PlacementMenuSettings() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryType, setNewCategoryType] = useState(PLACEMENT_TYPES[0].value);
-  const [newItemDrafts, setNewItemDrafts] = useState({}); // { [categoryId]: name }
+
+  // Collapsed by default — at 10 categories × 10 placements, showing
+  // everything expanded at once is exactly the "flat, not ready for scale"
+  // problem this redesign is fixing. A row expands only once the user asks.
+  const [expandedCategories, setExpandedCategories] = useState(() => new Set());
+  const [expandedItems, setExpandedItems] = useState(() => new Set());
+
+  // Creating a category or placement now always happens in a small
+  // centered overlay instead of an always-visible inline form at the
+  // bottom of a (potentially very long) list.
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [addCategoryName, setAddCategoryName] = useState('');
+  const [addCategoryType, setAddCategoryType] = useState(PLACEMENT_TYPES[0].value);
+  const [addPlacementForCategoryId, setAddPlacementForCategoryId] = useState(null);
+  const [addPlacementName, setAddPlacementName] = useState('');
 
   const refresh = () => {
     setStatus('loading');
@@ -79,19 +135,37 @@ export default function PlacementMenuSettings() {
     return map;
   }, [categories, items]);
 
+  const toggleCategory = (id) => setExpandedCategories((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleItem = (id) => setExpandedItems((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const openAddCategory = () => {
+    setAddCategoryName('');
+    setAddCategoryType(PLACEMENT_TYPES[0].value);
+    setAddCategoryOpen(true);
+  };
+
   const createCategory = async () => {
-    const name = newCategoryName.trim();
+    const name = addCategoryName.trim();
     if (!name) { window.alert('Enter a category name first.'); return; }
     const id = `placement-category-${Date.now()}`;
-    const placementType = newCategoryType;
+    const placementType = addCategoryType;
     setCategories((prev) => [...prev, { id, name, placementType }]);
+    setAddCategoryOpen(false);
     try {
       await appsScriptPost(SANDBOX_API_URL, { action: 'createPlacementCategory', payload: JSON.stringify({ id, name, placementType }) });
       await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listPlacementCategories' });
         return rows.some((c) => c.id === id);
       });
-      setNewCategoryName('');
+      setExpandedCategories((prev) => new Set(prev).add(id));
     } catch (err) {
       setCategories((prev) => prev.filter((c) => c.id !== id));
       window.alert(`Could not add category: ${err.message}`);
@@ -151,8 +225,14 @@ export default function PlacementMenuSettings() {
     }
   };
 
-  const createItem = async (categoryId) => {
-    const name = (newItemDrafts[categoryId] || '').trim();
+  const openAddPlacement = (categoryId) => {
+    setAddPlacementName('');
+    setAddPlacementForCategoryId(categoryId);
+  };
+
+  const createItem = async () => {
+    const categoryId = addPlacementForCategoryId;
+    const name = addPlacementName.trim();
     if (!name) { window.alert('Enter a placement name first.'); return; }
     const id = `placement-item-${Date.now()}`;
     const lines = [emptyLine()];
@@ -160,13 +240,14 @@ export default function PlacementMenuSettings() {
     const sharedCostMethod = 'CPM';
     const sharedRate = '';
     setItems((prev) => [...prev, { id, categoryId, name, rateMode, sharedCostMethod, sharedRate, lines }]);
+    setAddPlacementForCategoryId(null);
     try {
       await appsScriptPost(SANDBOX_API_URL, { action: 'createPlacementMenuItem', payload: JSON.stringify({ id, categoryId, name, rateMode, sharedCostMethod, sharedRate, lines }) });
       await verifyByPolling(async () => {
         const rows = await jsonpRequest(SANDBOX_API_URL, { action: 'listPlacementMenuItems' });
         return rows.some((i) => i.id === id);
       });
-      setNewItemDrafts((prev) => ({ ...prev, [categoryId]: '' }));
+      setExpandedItems((prev) => new Set(prev).add(id));
     } catch (err) {
       setItems((prev) => prev.filter((i) => i.id !== id));
       window.alert(`Could not add placement: ${err.message}`);
@@ -243,122 +324,196 @@ export default function PlacementMenuSettings() {
         The organized menu planners pick from when building a Sponsorship Hub package, instead of typing everything by hand. Each Category maps to a Revenue Type (the calc engine's existing placement-type categorization) — every Placement under it inherits that mapping automatically. A Placement with more than one line is a bundle: picking it in the Hub adds every line at once (e.g. "Paramount Digital Package" adding a Billboard, Pre-Roll, and Midroll line together).
       </p>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '12px 0 20px', flexWrap: 'wrap' }}>
-        <input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" style={{ width: 220 }} />
-        <select value={newCategoryType} onChange={(e) => setNewCategoryType(e.target.value)}>
-          {PLACEMENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
-        <button onClick={createCategory}>Add category</button>
+      <div style={{ margin: '12px 0 20px' }}>
+        <button onClick={openAddCategory}>+ Add category</button>
       </div>
 
-      {categories.map((category) => (
-        <div key={category.id} style={{ marginBottom: 24, maxWidth: 780 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-            <input
-              defaultValue={category.name}
-              onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== category.name) renameCategory(category, v); }}
-              style={{ fontWeight: 700, fontSize: '1rem', border: 'none', background: 'transparent', padding: '2px 4px', width: 220 }}
-            />
-            <select value={category.placementType} onChange={(e) => updateCategoryType(category, e.target.value)}>
-              {PLACEMENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-            <button className="btn-link btn-link-danger" onClick={() => deleteCategory(category)}>Delete Category</button>
-          </div>
-
-          {(itemsByCategory[category.id] || []).map((item) => (
-            <div key={item.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', padding: 10, marginBottom: 8, background: 'var(--surface)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <input
-                  defaultValue={item.name}
-                  onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== item.name) renameItem(item, v); }}
-                  style={{ fontWeight: 600, width: 260 }}
-                />
-                {item.lines.length > 1 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bundle · {item.lines.length} lines</span>}
-                <button className="btn-link" onClick={() => deleteItem(item)} style={{ marginLeft: 'auto' }}>Delete</button>
-              </div>
-
-              {item.lines.length > 1 && (
-                <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-                  {RATE_MODES.map((m) => (
-                    <label key={m.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 400, fontSize: '0.85rem', marginBottom: 0 }}>
-                      <input
-                        type="radio"
-                        name={`rateMode-${item.id}`}
-                        checked={(item.rateMode || 'perLine') === m.value}
-                        onChange={() => updateItemRateMode(item, m.value)}
-                      />
-                      {m.label}
-                    </label>
-                  ))}
-                  {item.rateMode === 'shared' && (
-                    <>
-                      <select value={item.sharedCostMethod || 'CPM'} onChange={(e) => updateItemSharedCostMethod(item, e.target.value)}>
-                        <option value="CPM">CPM</option>
-                        <option value="Flat Fee">Flat Fee</option>
-                        <option value="AV">Added Value</option>
-                      </select>
-                      <input
-                        type="number"
-                        value={item.sharedRate || ''}
-                        onChange={(e) => updateItemSharedRate(item, e.target.value)}
-                        placeholder="Shared rate"
-                        style={{ width: 100 }}
-                      />
-                    </>
-                  )}
-                </div>
-              )}
-
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Platform</th><th>Description</th><th>Size</th>
-                      {item.rateMode !== 'shared' && <><th>Cost Method</th><th>Default Rate</th></>}
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {item.lines.map((line, idx) => (
-                      <tr key={idx}>
-                        <td><input value={line.platform} onChange={(e) => updateLine(item, idx, 'platform', e.target.value)} style={{ width: 110 }} /></td>
-                        <td><input value={line.description} onChange={(e) => updateLine(item, idx, 'description', e.target.value)} style={{ width: 200 }} /></td>
-                        <td><input value={line.size} onChange={(e) => updateLine(item, idx, 'size', e.target.value)} style={{ width: 80 }} /></td>
-                        {item.rateMode !== 'shared' && (
-                          <>
-                            <td>
-                              <select value={line.costMethod} onChange={(e) => updateLine(item, idx, 'costMethod', e.target.value)}>
-                                <option value="CPM">CPM</option>
-                                <option value="Flat Fee">Flat Fee</option>
-                                <option value="AV">Added Value</option>
-                                <option value="">— (bundled, no charge)</option>
-                              </select>
-                            </td>
-                            <td><input type="number" value={line.defaultRate} onChange={(e) => updateLine(item, idx, 'defaultRate', e.target.value)} style={{ width: 90 }} /></td>
-                          </>
-                        )}
-                        <td><button className="btn-link btn-link-danger" onClick={() => removeLine(item, idx)} disabled={item.lines.length <= 1}>✕</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <button className="btn-link" onClick={() => addLine(item)} style={{ marginTop: 4 }}>+ Add line (make this a bundle)</button>
+      {categories.map((category) => {
+        const categoryOpen = expandedCategories.has(category.id);
+        const categoryItems = itemsByCategory[category.id] || [];
+        return (
+          <div key={category.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', marginBottom: 12, background: 'var(--surface)', maxWidth: 780 }}>
+            <div
+              onClick={() => toggleCategory(category.id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer' }}
+            >
+              <span style={{ fontSize: '0.75rem', width: 12, display: 'inline-block' }}>{categoryOpen ? '▾' : '▸'}</span>
+              <span style={{ fontWeight: 700 }}>{category.name}</span>
+              <span style={badgeStyle}>{placementTypeLabel(category.placementType)}</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                {categoryItems.length} placement{categoryItems.length === 1 ? '' : 's'}
+              </span>
+              <button
+                className="btn-link btn-link-danger"
+                style={{ marginLeft: 'auto' }}
+                onClick={(e) => { e.stopPropagation(); deleteCategory(category); }}
+              >
+                Delete
+              </button>
             </div>
-          ))}
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <input
-              value={newItemDrafts[category.id] || ''}
-              onChange={(e) => setNewItemDrafts((prev) => ({ ...prev, [category.id]: e.target.value }))}
-              placeholder="New placement name"
-              style={{ width: 220 }}
-            />
-            <button onClick={() => createItem(category.id)}>Add placement</button>
+            {categoryOpen && (
+              <div style={{ padding: '0 14px 14px', borderTop: '1px solid var(--border-soft)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0', flexWrap: 'wrap' }}>
+                  <input
+                    defaultValue={category.name}
+                    onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== category.name) renameCategory(category, v); }}
+                    style={{ fontWeight: 700, fontSize: '1rem', width: 220 }}
+                  />
+                  <select value={category.placementType} onChange={(e) => updateCategoryType(category, e.target.value)}>
+                    {PLACEMENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+
+                {categoryItems.map((item) => {
+                  const itemOpen = expandedItems.has(item.id);
+                  const isBundle = item.lines.length > 1;
+                  return (
+                    <div key={item.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-control)', marginBottom: 8, background: 'var(--background)' }}>
+                      <div
+                        onClick={() => toggleItem(item.id)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer' }}
+                      >
+                        <span style={{ fontSize: '0.75rem', width: 12, display: 'inline-block' }}>{itemOpen ? '▾' : '▸'}</span>
+                        <span style={{ fontWeight: 600 }}>{item.name}</span>
+                        <span style={badgeStyle}>{isBundle ? `Bundle · ${item.lines.length} lines` : 'Single line'}</span>
+                        <button
+                          className="btn-link btn-link-danger"
+                          style={{ marginLeft: 'auto' }}
+                          onClick={(e) => { e.stopPropagation(); deleteItem(item); }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+
+                      {itemOpen && (
+                        <div style={{ padding: '0 12px 12px', borderTop: '1px solid var(--border-soft)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0' }}>
+                            <input
+                              defaultValue={item.name}
+                              onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== item.name) renameItem(item, v); }}
+                              style={{ fontWeight: 600, width: 260 }}
+                            />
+                          </div>
+
+                          {isBundle && (
+                            <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                              {RATE_MODES.map((m) => (
+                                <label key={m.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 400, fontSize: '0.85rem', marginBottom: 0 }}>
+                                  <input
+                                    type="radio"
+                                    name={`rateMode-${item.id}`}
+                                    checked={(item.rateMode || 'perLine') === m.value}
+                                    onChange={() => updateItemRateMode(item, m.value)}
+                                  />
+                                  {m.label}
+                                </label>
+                              ))}
+                              {item.rateMode === 'shared' && (
+                                <>
+                                  <select value={item.sharedCostMethod || 'CPM'} onChange={(e) => updateItemSharedCostMethod(item, e.target.value)}>
+                                    <option value="CPM">CPM</option>
+                                    <option value="Flat Fee">Flat Fee</option>
+                                    <option value="AV">Added Value</option>
+                                  </select>
+                                  <input
+                                    type="number"
+                                    value={item.sharedRate || ''}
+                                    onChange={(e) => updateItemSharedRate(item, e.target.value)}
+                                    placeholder="Shared rate"
+                                    style={{ width: 100 }}
+                                  />
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="table-scroll">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Platform</th><th>Description</th><th>Size</th>
+                                  {item.rateMode !== 'shared' && <><th>Cost Method</th><th>Default Rate</th></>}
+                                  <th></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {item.lines.map((line, idx) => (
+                                  <tr key={idx}>
+                                    <td><input value={line.platform} onChange={(e) => updateLine(item, idx, 'platform', e.target.value)} style={{ width: 110 }} /></td>
+                                    <td><input value={line.description} onChange={(e) => updateLine(item, idx, 'description', e.target.value)} style={{ width: 200 }} /></td>
+                                    <td><input value={line.size} onChange={(e) => updateLine(item, idx, 'size', e.target.value)} style={{ width: 80 }} /></td>
+                                    {item.rateMode !== 'shared' && (
+                                      <>
+                                        <td>
+                                          <select value={line.costMethod} onChange={(e) => updateLine(item, idx, 'costMethod', e.target.value)}>
+                                            <option value="CPM">CPM</option>
+                                            <option value="Flat Fee">Flat Fee</option>
+                                            <option value="AV">Added Value</option>
+                                            <option value="">— (bundled, no charge)</option>
+                                          </select>
+                                        </td>
+                                        <td><input type="number" value={line.defaultRate} onChange={(e) => updateLine(item, idx, 'defaultRate', e.target.value)} style={{ width: 90 }} /></td>
+                                      </>
+                                    )}
+                                    <td><button className="btn-link btn-link-danger" onClick={() => removeLine(item, idx)} disabled={item.lines.length <= 1}>✕</button></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          <button className="btn-link" onClick={() => addLine(item)} style={{ marginTop: 4 }}>+ Add line (make this a bundle)</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <button onClick={() => openAddPlacement(category.id)} style={{ marginTop: 4 }}>+ Add placement</button>
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
       {categories.length === 0 && <p style={{ color: 'var(--text-muted)' }}>No categories yet.</p>}
+
+      {addCategoryOpen && (
+        <Modal title="Add Category" onCancel={() => setAddCategoryOpen(false)} onSubmit={createCategory} submitLabel="Create">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label>
+              Name
+              <input
+                autoFocus
+                value={addCategoryName}
+                onChange={(e) => setAddCategoryName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') createCategory(); }}
+                style={{ width: '100%', marginTop: 4 }}
+              />
+            </label>
+            <label>
+              Revenue Type
+              <select value={addCategoryType} onChange={(e) => setAddCategoryType(e.target.value)} style={{ width: '100%', marginTop: 4 }}>
+                {PLACEMENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </label>
+          </div>
+        </Modal>
+      )}
+
+      {addPlacementForCategoryId !== null && (
+        <Modal title="Add Placement" onCancel={() => setAddPlacementForCategoryId(null)} onSubmit={createItem} submitLabel="Create">
+          <label>
+            Name
+            <input
+              autoFocus
+              value={addPlacementName}
+              onChange={(e) => setAddPlacementName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') createItem(); }}
+              style={{ width: '100%', marginTop: 4 }}
+            />
+          </label>
+        </Modal>
+      )}
     </div>
   );
 }
